@@ -7,204 +7,275 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; background: #fff; color: #111; font-size: 13px; min-height: 100vh; }
+    body { font-family: Arial, sans-serif; background: #fff; color: #111; font-size: 13px; }
 
-    /* ── Header ── */
+    /* ── HEADER ── */
     header {
-      padding: 28px 36px 20px;
+      padding: 24px 32px 18px;
       border-bottom: 2px solid #111;
       display: flex;
       align-items: flex-end;
       justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
     }
-    header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.2px; margin-bottom: 14px; }
-    .aum-strip { display: flex; gap: 36px; align-items: baseline; }
+    .header-left h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; margin-bottom: 12px; }
+    .aum-strip { display: flex; gap: 28px; align-items: baseline; flex-wrap: wrap; }
     .aum-block {}
-    .aum-value { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; }
-    .aum-value.sub { font-size: 17px; font-weight: 600; }
-    .aum-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #999; margin-top: 4px; }
-    .aum-divider { width: 1px; height: 32px; background: #e5e5e5; align-self: center; }
-    .header-meta { font-size: 11px; color: #999; text-align: right; line-height: 1.6; }
+    .aum-value        { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; }
+    .aum-value.small  { font-size: 16px; font-weight: 600; }
+    .aum-label        { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #999; margin-top: 3px; }
+    .aum-div          { width: 1px; height: 28px; background: #e5e5e5; align-self: center; }
+
+    .header-right { text-align: right; }
+    .refresh-status { font-size: 11px; color: #999; margin-bottom: 6px; }
+    .refresh-status span { color: #333; font-weight: 600; }
     .refresh-btn {
-      margin-top: 6px;
-      background: none;
-      border: 1px solid #ddd;
-      padding: 4px 12px;
-      font-size: 11px;
-      font-family: Arial;
-      cursor: pointer;
-      color: #666;
-      display: block;
-      margin-left: auto;
+      background: none; border: 1px solid #ddd; padding: 4px 14px;
+      font-size: 11px; font-family: Arial; cursor: pointer; color: #666;
     }
     .refresh-btn:hover { border-color: #111; color: #111; }
 
-    /* ── Layout ── */
-    .main {
+    /* ── CATEGORY BAR ── */
+    .cat-bar-section {
+      padding: 14px 32px;
+      border-bottom: 1px solid #e5e5e5;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .cat-bar-track {
+      flex: 1;
+      min-width: 200px;
+      height: 8px;
+      background: #f0f0f0;
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+    }
+    .cat-bar-seg { height: 100%; transition: width 0.4s ease; }
+    .cat-legend { display: flex; gap: 18px; flex-wrap: wrap; }
+    .cat-item { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .cat-name { font-size: 11px; color: #555; }
+    .cat-val  { font-size: 11px; font-weight: 700; color: #111; margin-left: 2px; }
+    .cat-pct  { font-size: 10px; color: #999; }
+
+    /* ── MAIN GRID ── */
+    .main-grid {
       display: grid;
-      grid-template-columns: 1fr 380px;
-      min-height: calc(100vh - 140px);
+      grid-template-columns: 1fr 360px;
     }
-    .table-section { padding: 24px 36px 36px; border-right: 1px solid #e5e5e5; }
-    .charts-section { padding: 24px 28px 36px; }
 
+    /* ── TABLE SECTION ── */
+    .table-section { padding: 20px 32px 32px; border-right: 1px solid #e5e5e5; }
     .section-label {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.9px;
-      color: #999;
-      margin-bottom: 14px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.9px; color: #999; margin-bottom: 12px;
     }
 
-    /* ── Table ── */
     table { width: 100%; border-collapse: collapse; }
     thead th {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      color: #999;
-      padding: 0 10px 10px 0;
-      border-bottom: 1px solid #ddd;
-      text-align: right;
-      cursor: pointer;
-      white-space: nowrap;
-      user-select: none;
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; color: #999; padding: 0 8px 10px 0;
+      border-bottom: 1px solid #ddd; text-align: right; cursor: pointer;
+      user-select: none; white-space: nowrap;
     }
-    thead th:first-child { text-align: left; }
-    thead th:hover { color: #111; }
-    thead th.sorted { color: #111; }
-    thead th .sort-arrow { margin-left: 3px; opacity: 0.5; }
+    thead th:first-child { text-align: left; padding-left: 0; }
+    thead th:hover, thead th.sorted { color: #111; }
+    .sort-arrow { margin-left: 2px; opacity: 0.4; }
     thead th.sorted .sort-arrow { opacity: 1; }
 
     tbody td {
-      padding: 11px 10px 11px 0;
-      border-bottom: 1px solid #f2f2f2;
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-      vertical-align: middle;
+      padding: 10px 8px 10px 0; border-bottom: 1px solid #f2f2f2;
+      text-align: right; font-variant-numeric: tabular-nums; vertical-align: middle;
     }
-    tbody td:first-child { text-align: left; font-weight: 600; }
+    tbody td:first-child { text-align: left; padding-left: 0; }
     tbody tr:last-child td { border-bottom: none; }
     tbody tr:hover td { background: #fafafa; }
-
+    .tok-name { font-weight: 600; }
+    .tok-cat  { font-size: 10px; color: #999; font-weight: 400; margin-left: 5px; }
     .null-val { color: #ccc; }
-    .pct-val { color: #555; }
-
-    /* allocation bar inside % cell */
-    .alloc-cell { position: relative; min-width: 70px; }
-    .alloc-bar {
-      position: absolute;
-      bottom: 0;
-      right: 0;
-      height: 2px;
-      background: #1a7a3a;
-      border-radius: 1px;
+    .pct-val  { color: #555; }
+    .alloc-cell { position: relative; }
+    .alloc-bar  {
+      position: absolute; bottom: 0; right: 0;
+      height: 2px; background: #1a7a3a; border-radius: 1px;
     }
 
-    /* ── Charts ── */
-    .chart-block { margin-bottom: 28px; }
+    /* ── RIGHT PANEL ── */
+    .right-panel { padding: 20px 24px 32px; display: flex; flex-direction: column; gap: 28px; }
+    .chart-block {}
     .chart-block canvas { display: block; }
 
-    /* ── Loading state ── */
-    .loading { color: #999; font-size: 12px; padding: 24px 0; }
-    .error { color: #c0392b; font-size: 12px; padding: 12px 0; }
+    /* ── HISTORY SECTION ── */
+    .history-section {
+      padding: 20px 32px 32px;
+      border-top: 1px solid #e5e5e5;
+    }
+    .history-note { font-size: 11px; color: #bbb; margin-top: 8px; font-style: italic; }
+
+    /* ── LOADING / ERROR ── */
+    .loading { color: #999; font-size: 12px; padding: 20px 0; }
+    .error   { color: #c0392b; font-size: 12px; padding: 12px 0; }
+
+    /* ── MOBILE ── */
+    @media (max-width: 760px) {
+      header { padding: 18px 18px 14px; }
+      .cat-bar-section { padding: 12px 18px; }
+
+      .main-grid { grid-template-columns: 1fr; }
+      .table-section { padding: 18px 18px 24px; border-right: none; border-bottom: 1px solid #e5e5e5; }
+      .right-panel { padding: 18px 18px 24px; flex-direction: row; flex-wrap: wrap; gap: 18px; }
+      .right-panel .chart-block { flex: 1 1 280px; min-width: 0; }
+      .right-panel canvas { width: 100% !important; height: auto !important; }
+      .history-section { padding: 18px 18px 24px; }
+      .aum-value { font-size: 22px; }
+    }
   </style>
 </head>
 <body>
 
+<!-- HEADER -->
 <header>
-  <div>
+  <div class="header-left">
     <h1>Pylon Holdings</h1>
     <div class="aum-strip">
       <div class="aum-block">
         <div class="aum-value" id="total-aum">—</div>
         <div class="aum-label">Total AUM</div>
       </div>
-      <div class="aum-divider"></div>
+      <div class="aum-div"></div>
       <div class="aum-block">
-        <div class="aum-value sub" id="personal-aum">—</div>
+        <div class="aum-value small" id="personal-aum">—</div>
         <div class="aum-label">Personal</div>
       </div>
       <div class="aum-block">
-        <div class="aum-value sub" id="pylon-aum">—</div>
+        <div class="aum-value small" id="pylon-aum">—</div>
         <div class="aum-label">Pylon</div>
       </div>
     </div>
   </div>
-  <div class="header-meta">
-    <span id="snapshot-label">—</span>
-    <button class="refresh-btn" onclick="loadData()">Refresh</button>
+  <div class="header-right">
+    <div class="refresh-status">Refreshes in <span id="countdown">5:00</span></div>
+    <button class="refresh-btn" onclick="manualRefresh()">Refresh now</button>
   </div>
 </header>
 
-<div class="main">
+<!-- CATEGORY BAR -->
+<div class="cat-bar-section">
+  <div class="cat-bar-track" id="cat-bar">
+    <div class="cat-bar-seg" id="seg-crypto" style="background:#1a7a3a; width:0%"></div>
+    <div class="cat-bar-seg" id="seg-stables" style="background:#999; width:0%"></div>
+    <div class="cat-bar-seg" id="seg-illiquid" style="background:#d4a017; width:0%"></div>
+  </div>
+  <div class="cat-legend" id="cat-legend">
+    <div class="cat-item">
+      <div class="cat-dot" style="background:#1a7a3a"></div>
+      <span class="cat-name">Crypto</span>
+      <span class="cat-val" id="cat-crypto-val">—</span>
+      <span class="cat-pct" id="cat-crypto-pct"></span>
+    </div>
+    <div class="cat-item">
+      <div class="cat-dot" style="background:#999"></div>
+      <span class="cat-name">Stables</span>
+      <span class="cat-val" id="cat-stables-val">—</span>
+      <span class="cat-pct" id="cat-stables-pct"></span>
+    </div>
+    <div class="cat-item">
+      <div class="cat-dot" style="background:#d4a017"></div>
+      <span class="cat-name">Illiquid</span>
+      <span class="cat-val" id="cat-illiquid-val">—</span>
+      <span class="cat-pct" id="cat-illiquid-pct"></span>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN GRID -->
+<div class="main-grid">
+
   <!-- Holdings table -->
   <div class="table-section">
     <div class="section-label">Holdings</div>
-    <div id="table-container">
-      <div class="loading">Loading...</div>
+    <div id="table-container"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- Right charts -->
+  <div class="right-panel">
+    <div class="chart-block">
+      <div class="section-label">Allocation</div>
+      <canvas id="donut-chart" width="312" height="220"></canvas>
+    </div>
+    <div class="chart-block">
+      <div class="section-label">Personal vs Pylon</div>
+      <canvas id="split-chart" width="312" height="280"></canvas>
     </div>
   </div>
 
-  <!-- Charts -->
-  <div class="charts-section">
-    <div class="chart-block">
-      <div class="section-label">Allocation</div>
-      <canvas id="pie-chart" width="324" height="240"></canvas>
-    </div>
-    <div class="chart-block">
-      <div class="section-label">Value by Position</div>
-      <canvas id="bar-chart" width="324" height="260"></canvas>
-    </div>
-  </div>
+</div>
+
+<!-- HISTORY LINE -->
+<div class="history-section">
+  <div class="section-label">Portfolio Value Over Time</div>
+  <div id="history-container"><div class="loading">Loading...</div></div>
 </div>
 
 <script>
   const SHEET_ID   = '1CzdYeJkbu33l7jd0k8zBU63_QzYAAY_wIuM3r69ZpYQ';
   const SHEET_NAME = 'Consolidated';
-  const URL        = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+  const GVIZ_URL   = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+  const REFRESH_MS = 5 * 60 * 1000;
 
-  let pieChart, barChart;
+  let donutChart, splitChart, historyChart;
   let holdings = [];
-  let sortCol  = 4;   // default: Total Value
-  let sortAsc  = false;
+  let sortCol = 4, sortAsc = false;
+  let countdownSec = 300;
+  let countdownInterval;
 
-  // ── Format helpers ──────────────────────────────────────────
-  function fmtUSD(v, compact) {
+  // ── Categories ──────────────────────────────────────────────
+  const STABLES  = ['USDC','USDT','USDG','BUSD','USDS','DAI','FRAX','TUSD','LUSD'];
+  const ILLIQUID = ['SN44'];
+
+  function getCategory(token) {
+    const t = token.toUpperCase();
+    if (STABLES.some(s => t === s || t.startsWith(s))) return 'stables';
+    if (ILLIQUID.some(s => t.includes(s))) return 'illiquid';
+    return 'crypto';
+  }
+
+  // ── Format helpers ───────────────────────────────────────────
+  function fmtUSD(v) {
     if (v == null || isNaN(v)) return '<span class="null-val">—</span>';
-    if (compact) {
-      if (v >= 1e6) return '$' + (v / 1e6).toFixed(2) + 'M';
-      if (v >= 1e3) return '$' + (v / 1e3).toFixed(1) + 'k';
-    }
     return '$' + Math.round(v).toLocaleString('en-US');
   }
-
   function fmtPrice(v) {
-    if (v == null || isNaN(v)) return '<span class="null-val">—</span>';
-    if (v === 0) return '<span class="null-val">—</span>';
+    if (v == null || isNaN(v) || v === 0) return '<span class="null-val">—</span>';
     if (v >= 10000) return '$' + Math.round(v).toLocaleString('en-US');
-    if (v >= 1)    return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (v >= 1)     return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return '$' + v.toPrecision(4);
   }
-
   function fmtPct(v) {
     if (v == null || isNaN(v)) return '<span class="null-val">—</span>';
     return (v * 100).toFixed(1) + '%';
   }
+  function fmtK(v) {
+    if (v >= 1e6) return '$' + (v / 1e6).toFixed(2) + 'M';
+    if (v >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'k';
+    return '$' + Math.round(v);
+  }
 
-  // ── Fetch + parse ────────────────────────────────────────────
+  // ── Fetch ────────────────────────────────────────────────────
   async function loadData() {
-    document.getElementById('table-container').innerHTML = '<div class="loading">Loading...</div>';
     try {
-      const res  = await fetch(URL);
+      const res  = await fetch(GVIZ_URL + '&_=' + Date.now());
       const text = await res.text();
       const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
       process(json.table);
     } catch (e) {
       document.getElementById('table-container').innerHTML =
-        `<div class="error">Failed to load data. Make sure the sheet is publicly shared.<br>${e.message}</div>`;
+        `<div class="error">Failed to load: ${e.message}</div>`;
+      document.getElementById('history-container').innerHTML = '';
     }
   }
 
@@ -213,39 +284,51 @@
   function process(table) {
     const rows = table.rows.map(r => r.c.map(cellVal));
 
-    // TOTAL AUM row
+    // TOTAL AUM
     const totRow = rows.find(r => r[0] === 'TOTAL AUM');
     if (totRow) {
-      document.getElementById('total-aum').textContent  = totRow[4] != null ? '$' + Math.round(totRow[4]).toLocaleString() : '—';
+      document.getElementById('total-aum').textContent    = totRow[4] != null ? '$' + Math.round(totRow[4]).toLocaleString() : '—';
       document.getElementById('personal-aum').textContent = totRow[2] != null ? '$' + Math.round(totRow[2]).toLocaleString() : '—';
       document.getElementById('pylon-aum').textContent    = totRow[3] != null ? '$' + Math.round(totRow[3]).toLocaleString() : '—';
     }
 
-    // History snapshot
+    // History rows
     const histIdx = rows.findIndex(r => r[0] === 'HISTORY');
-    if (histIdx !== -1) {
-      const snap = rows[histIdx + 1];
-      if (snap && snap[0]) {
-        const snapVal = snap[1] != null ? '  |  $' + Math.round(snap[1]).toLocaleString() : '';
-        document.getElementById('snapshot-label').textContent = `Snapshot: ${snap[0]}${snapVal}`;
-      }
-    }
+    const histRows = histIdx !== -1
+      ? rows.slice(histIdx + 1).filter(r => r[0] && r[1] != null)
+      : [];
 
-    // Holdings = rows before TOTAL AUM and HISTORY
+    // Holdings = before TOTAL AUM and HISTORY
     const cutoff = Math.min(
-      histIdx !== -1 ? histIdx : rows.length,
-      rows.findIndex(r => r[0] === 'TOTAL AUM') !== -1 ? rows.findIndex(r => r[0] === 'TOTAL AUM') : rows.length
+      rows.findIndex(r => r[0] === 'TOTAL AUM') >= 0 ? rows.findIndex(r => r[0] === 'TOTAL AUM') : rows.length,
+      histIdx >= 0 ? histIdx : rows.length
     );
     holdings = rows.slice(0, cutoff).filter(r => r[0] && r[4] != null && r[4] > 0);
 
+    renderCategoryBar();
     renderTable();
-    renderCharts();
+    renderDonut();
+    renderSplitBar();
+    renderHistory(histRows);
   }
 
-  // ── Table ────────────────────────────────────────────────────
+  // ── Category bar ─────────────────────────────────────────────
+  function renderCategoryBar() {
+    const totals = { crypto: 0, stables: 0, illiquid: 0 };
+    holdings.forEach(r => { totals[getCategory(r[0])] += r[4] || 0; });
+    const total = totals.crypto + totals.stables + totals.illiquid || 1;
+
+    ['crypto','stables','illiquid'].forEach(cat => {
+      const pct = (totals[cat] / total * 100).toFixed(1);
+      document.getElementById(`seg-${cat}`).style.width = pct + '%';
+      document.getElementById(`cat-${cat}-val`).textContent = fmtK(totals[cat]);
+      document.getElementById(`cat-${cat}-pct`).textContent = `(${pct}%)`;
+    });
+  }
+
+  // ── Holdings table ───────────────────────────────────────────
   function renderTable() {
     const maxVal = Math.max(...holdings.map(r => r[4] || 0));
-
     const sorted = [...holdings].sort((a, b) => {
       const av = a[sortCol], bv = b[sortCol];
       if (av == null && bv == null) return 0;
@@ -256,28 +339,33 @@
     });
 
     const cols = [
-      { label: 'Token',       idx: 0 },
-      { label: 'Price',       idx: 1 },
-      { label: 'Personal',    idx: 2 },
-      { label: 'Pylon',       idx: 3 },
-      { label: 'Total Value', idx: 4 },
-      { label: 'Alloc',       idx: 5 },
+      { label: 'Token', idx: 0 },
+      { label: 'Price',  idx: 1 },
+      { label: 'Personal', idx: 2 },
+      { label: 'Pylon',    idx: 3 },
+      { label: 'Total',    idx: 4 },
+      { label: 'Alloc',    idx: 5 },
     ];
 
-    const arrow = (idx) => {
-      if (sortCol !== idx) return '<span class="sort-arrow">↕</span>';
-      return `<span class="sort-arrow">${sortAsc ? '↑' : '↓'}</span>`;
-    };
+    const arrow = i => sortCol !== i
+      ? '<span class="sort-arrow">↕</span>'
+      : `<span class="sort-arrow">${sortAsc ? '↑' : '↓'}</span>`;
+
+    const catLabels = { crypto: 'Crypto', stables: 'Stable', illiquid: 'Illiquid' };
+    const catColors = { crypto: '#1a7a3a', stables: '#999', illiquid: '#d4a017' };
 
     const thead = `<thead><tr>${cols.map(c =>
-      `<th class="${sortCol === c.idx ? 'sorted' : ''}" onclick="sort(${c.idx})">${c.label}${arrow(c.idx)}</th>`
+      `<th class="${sortCol === c.idx ? 'sorted' : ''}" onclick="sortTable(${c.idx})">${c.label}${arrow(c.idx)}</th>`
     ).join('')}</tr></thead>`;
 
     const tbody = `<tbody>${sorted.map(r => {
-      const pct   = r[5] != null ? r[5] : 0;
-      const barW  = Math.round((r[4] / maxVal) * 100);
+      const cat    = getCategory(r[0]);
+      const barW   = Math.round((r[4] / maxVal) * 100);
       return `<tr>
-        <td>${r[0]}</td>
+        <td>
+          <span class="tok-name">${r[0]}</span>
+          <span class="tok-cat" style="color:${catColors[cat]}">${catLabels[cat]}</span>
+        </td>
         <td>${fmtPrice(r[1])}</td>
         <td>${fmtUSD(r[2])}</td>
         <td>${fmtUSD(r[3])}</td>
@@ -289,81 +377,178 @@
       </tr>`;
     }).join('')}</tbody>`;
 
-    document.getElementById('table-container').innerHTML =
-      `<table>${thead}${tbody}</table>`;
+    document.getElementById('table-container').innerHTML = `<table>${thead}${tbody}</table>`;
   }
 
-  function sort(col) {
-    if (sortCol === col) { sortAsc = !sortAsc; }
+  function sortTable(col) {
+    if (sortCol === col) sortAsc = !sortAsc;
     else { sortCol = col; sortAsc = false; }
     renderTable();
   }
 
-  // ── Charts ───────────────────────────────────────────────────
-  const PALETTE = [
-    '#1a7a3a','#2ea855','#52c57a','#85d9a3','#b4ecc7',
-    '#999','#bbb','#c0392b','#e05a4a','#d4a017','#e8c567','#f0dda0'
-  ];
+  // ── Donut chart ──────────────────────────────────────────────
+  const CAT_COLORS = { crypto: '#1a7a3a', stables: '#999', illiquid: '#d4a017' };
+  const CRYPTO_SHADES = ['#1a7a3a','#2ea855','#52c57a','#85d9a3','#b4ecc7','#d0f5e0'];
 
-  function renderCharts() {
-    const data = [...holdings]
-      .filter(r => r[4] > 1)
-      .sort((a, b) => (b[4] || 0) - (a[4] || 0));
+  function renderDonut() {
+    const cryptoHoldings = holdings.filter(r => getCategory(r[0]) === 'crypto' && r[4] > 1);
+    const stablesTotal   = holdings.filter(r => getCategory(r[0]) === 'stables').reduce((s, r) => s + (r[4] || 0), 0);
+    const illiquidTotal  = holdings.filter(r => getCategory(r[0]) === 'illiquid').reduce((s, r) => s + (r[4] || 0), 0);
 
-    const labels = data.map(r => r[0]);
-    const values = data.map(r => r[4] || 0);
-    const colors = PALETTE.slice(0, data.length);
+    const labels = [
+      ...cryptoHoldings.map(r => r[0]),
+      ...(stablesTotal > 0 ? ['Stables'] : []),
+      ...(illiquidTotal > 0 ? ['Illiquid'] : []),
+    ];
+    const values = [
+      ...cryptoHoldings.map(r => r[4] || 0),
+      ...(stablesTotal > 0 ? [stablesTotal] : []),
+      ...(illiquidTotal > 0 ? [illiquidTotal] : []),
+    ];
+    const colors = [
+      ...CRYPTO_SHADES.slice(0, cryptoHoldings.length),
+      ...(stablesTotal > 0 ? ['#999'] : []),
+      ...(illiquidTotal > 0 ? ['#d4a017'] : []),
+    ];
 
-    // Doughnut
-    if (pieChart) pieChart.destroy();
-    pieChart = new Chart(document.getElementById('pie-chart'), {
+    if (donutChart) donutChart.destroy();
+    donutChart = new Chart(document.getElementById('donut-chart'), {
       type: 'doughnut',
-      data: {
-        labels,
-        datasets: [{ data: values, backgroundColor: colors, borderWidth: 1, borderColor: '#fff' }]
-      },
+      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 1, borderColor: '#fff' }] },
       options: {
         responsive: false,
-        cutout: '52%',
+        cutout: '50%',
         plugins: {
           legend: {
             position: 'right',
-            labels: {
-              font: { family: 'Arial', size: 10 },
-              boxWidth: 9,
-              padding: 7,
-              color: '#333'
-            }
+            labels: { font: { family: 'Arial', size: 10 }, boxWidth: 8, padding: 6, color: '#333' }
           },
           tooltip: {
             callbacks: {
               label: ctx => {
                 const total = values.reduce((s, v) => s + v, 0);
-                const pct   = ((ctx.raw / total) * 100).toFixed(1);
-                return ` $${Math.round(ctx.raw).toLocaleString()}  (${pct}%)`;
+                return ` $${Math.round(ctx.raw).toLocaleString()}  (${(ctx.raw / total * 100).toFixed(1)}%)`;
               }
             }
           }
         }
       }
     });
+  }
 
-    // Horizontal bar
-    if (barChart) barChart.destroy();
-    barChart = new Chart(document.getElementById('bar-chart'), {
+  // ── Personal vs Pylon stacked bar ───────────────────────────
+  function renderSplitBar() {
+    const data = holdings
+      .filter(r => (r[2] > 0 || r[3] > 0))
+      .sort((a, b) => ((b[2] || 0) + (b[3] || 0)) - ((a[2] || 0) + (a[3] || 0)));
+
+    if (splitChart) splitChart.destroy();
+    splitChart = new Chart(document.getElementById('split-chart'), {
       type: 'bar',
       data: {
-        labels,
-        datasets: [{
-          data: values,
-          backgroundColor: colors,
-          borderWidth: 0,
-          barThickness: 13
-        }]
+        labels: data.map(r => r[0]),
+        datasets: [
+          {
+            label: 'Personal',
+            data: data.map(r => r[2] || 0),
+            backgroundColor: '#1a7a3a',
+            borderWidth: 0,
+            barThickness: 11,
+          },
+          {
+            label: 'Pylon',
+            data: data.map(r => r[3] || 0),
+            backgroundColor: '#555',
+            borderWidth: 0,
+            barThickness: 11,
+          }
+        ]
       },
       options: {
         responsive: false,
         indexAxis: 'y',
+        plugins: {
+          legend: {
+            position: 'top',
+            align: 'start',
+            labels: { font: { family: 'Arial', size: 10 }, boxWidth: 8, padding: 10, color: '#333' }
+          },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.dataset.label}: $${Math.round(ctx.raw).toLocaleString()}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            stacked: true,
+            grid: { color: '#f2f2f2' },
+            border: { display: false },
+            ticks: {
+              font: { family: 'Arial', size: 10 }, color: '#999',
+              callback: v => v >= 1000 ? '$' + (v / 1000).toFixed(0) + 'k' : '$' + v
+            }
+          },
+          y: {
+            stacked: true,
+            grid: { display: false },
+            border: { display: false },
+            ticks: { font: { family: 'Arial', size: 10 }, color: '#333' }
+          }
+        }
+      }
+    });
+  }
+
+  // ── History line chart ───────────────────────────────────────
+  function renderHistory(histRows) {
+    const container = document.getElementById('history-container');
+
+    if (histRows.length === 0) {
+      container.innerHTML = '<div class="loading" style="color:#bbb">No history data yet.</div>';
+      return;
+    }
+
+    container.innerHTML = '';
+    const canvas = document.createElement('canvas');
+    canvas.width  = Math.min(window.innerWidth - 64, 1100);
+    canvas.height = 180;
+    container.appendChild(canvas);
+
+    if (histRows.length === 1) {
+      container.insertAdjacentHTML('beforeend',
+        '<div class="history-note">Add weekly snapshots to the HISTORY section of the sheet to build a performance chart.</div>');
+    }
+
+    const labels = histRows.map(r => r[0]);
+    const values = histRows.map(r => r[1]);
+    const minVal = Math.min(...values) * 0.97;
+    const maxVal = Math.max(...values) * 1.03;
+
+    if (historyChart) historyChart.destroy();
+    historyChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          borderColor: '#1a7a3a',
+          borderWidth: 2,
+          pointBackgroundColor: '#1a7a3a',
+          pointRadius: histRows.length === 1 ? 5 : 3,
+          pointHoverRadius: 6,
+          fill: true,
+          backgroundColor: (ctx) => {
+            const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 180);
+            g.addColorStop(0, 'rgba(26,122,58,0.12)');
+            g.addColorStop(1, 'rgba(26,122,58,0)');
+            return g;
+          },
+          tension: 0.3,
+        }]
+      },
+      options: {
+        responsive: false,
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -374,26 +559,49 @@
         },
         scales: {
           x: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: { font: { family: 'Arial', size: 11 }, color: '#666' }
+          },
+          y: {
+            min: minVal,
+            max: maxVal,
             grid: { color: '#f2f2f2' },
             border: { display: false },
             ticks: {
-              font: { family: 'Arial', size: 10 },
-              color: '#999',
-              callback: v => v >= 1000 ? '$' + (v / 1000).toFixed(0) + 'k' : '$' + v
+              font: { family: 'Arial', size: 10 }, color: '#999',
+              callback: v => '$' + (v / 1000).toFixed(0) + 'k'
             }
-          },
-          y: {
-            grid: { display: false },
-            border: { display: false },
-            ticks: { font: { family: 'Arial', size: 11 }, color: '#333' }
           }
         }
       }
     });
   }
 
+  // ── Countdown + auto-refresh ─────────────────────────────────
+  function startCountdown() {
+    countdownSec = 300;
+    clearInterval(countdownInterval);
+    countdownInterval = setInterval(() => {
+      countdownSec--;
+      const m = Math.floor(countdownSec / 60);
+      const s = String(countdownSec % 60).padStart(2, '0');
+      document.getElementById('countdown').textContent = `${m}:${s}`;
+      if (countdownSec <= 0) {
+        loadData();
+        startCountdown();
+      }
+    }, 1000);
+  }
+
+  function manualRefresh() {
+    loadData();
+    startCountdown();
+  }
+
   // ── Boot ─────────────────────────────────────────────────────
   loadData();
+  startCountdown();
 </script>
 </body>
 </html>
