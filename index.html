@@ -159,27 +159,36 @@
       padding: 20px 32px 40px;
       border-top: 1px solid #e5e5e5;
     }
-    .options-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+    /* ── CALL OPTIONS TRANSPOSED TABLE ── */
+    .options-table { width: 100%; border-collapse: collapse; margin-top: 4px; max-width: 760px; }
     .options-table thead th {
       font-size: 10px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.5px; color: #999; padding: 0 8px 10px 0;
-      border-bottom: 1px solid #ddd; text-align: right; white-space: nowrap;
+      letter-spacing: 0.6px; color: #999; padding: 0 0 10px 20px;
+      border-bottom: 2px solid #111; text-align: right; white-space: nowrap;
     }
-    .options-table thead th:first-child { text-align: left; padding-left: 0; }
+    .options-table thead th.opt-col-itm {
+      color: #1a7a3a; border-bottom-color: #1a7a3a;
+    }
+    .options-table thead th:first-child { text-align: left; padding-left: 0; border-bottom-color: #ddd; }
+    .options-table tbody tr { border-bottom: 1px solid #f2f2f2; }
+    .options-table tbody tr:last-child { border-bottom: none; }
+    .options-table tbody tr.opt-divider td { border-bottom: 1px solid #e5e5e5; padding-top: 0; padding-bottom: 0; height: 6px; }
     .options-table tbody td {
-      padding: 10px 8px 10px 0; border-bottom: 1px solid #f2f2f2;
-      text-align: right; font-variant-numeric: tabular-nums; vertical-align: top;
+      padding: 9px 0 9px 20px;
+      text-align: right; font-variant-numeric: tabular-nums; font-size: 13px;
     }
-    .options-table tbody td:first-child { text-align: left; padding-left: 0; font-weight: 600; }
-    .options-table tbody tr:last-child td { border-bottom: none; }
+    .options-table tbody td:first-child {
+      text-align: left; padding-left: 0;
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.6px; color: #aaa; white-space: nowrap;
+    }
     .options-table tbody tr:hover td { background: #fafafa; }
-    .opt-itm { color: #1a7a3a; font-weight: 600; }
+    .options-table tbody tr:hover td:first-child { background: none; }
+    .opt-itm { color: #1a7a3a; font-weight: 700; }
     .opt-otm { color: #c0392b; font-weight: 600; }
-    .opt-delivery { font-size: 11px; color: #555; max-width: 220px; text-align: left; line-height: 1.5; }
-    .opt-row-itm td { background: #f7fdf9; }
-    .opt-row-itm td:first-child { border-left: 2px solid #1a7a3a; padding-left: 10px; }
-    .opt-payoff-pos { color: #1a7a3a; font-weight: 600; }
+    .opt-payoff-pos { color: #1a7a3a; font-weight: 700; }
     .opt-payoff-neg { color: #c0392b; font-weight: 600; }
+    .opt-delivery-cell { font-size: 11px; color: #777; text-align: right; line-height: 1.5; max-width: 200px; }
 
     /* ── LOADING / ERROR ── */
     .loading { color: #999; font-size: 12px; padding: 20px 0; }
@@ -1044,68 +1053,67 @@
       return;
     }
 
-    const thead = `<thead><tr>
-      <th>Option</th>
-      <th>Strike</th>
-      <th>Current Price</th>
-      <th>Status</th>
-      <th>% vs Strike</th>
-      <th>Total Notional</th>
-      <th>Remaining Notional</th>
-      <th>Current Value</th>
-      <th>Unrealized P&amp;L</th>
-      <th>Tokens if Exercised</th>
-      <th>Expiry</th>
-      <th style="text-align:left">Delivery Terms</th>
-    </tr></thead>`;
+    // Parse each option into a structured object
+    const parsed = options.map(r => {
+      const name      = r[0].f || '';
+      const strikeFmt = r[1].f || '';
+      const tokens    = r[3].f || '';
+      const expiry    = r[4].f || '';
+      const price     = r[5].f || '';
+      const status    = r[6].f || '';
+      const pct       = r[7].f || '';
+      const rem       = r[8].f || '';
+      const deliv     = r[9].f || '';
+      const isITM     = status === 'ITM';
+      const sc        = isITM ? 'opt-itm' : 'opt-otm';
 
-    const tbody = `<tbody>${options.map(r => {
-      const name       = r[0].f || '';
-      const strikeFmt  = r[1].f || '';
-      const total      = r[2].f || '';
-      const tokens     = r[3].f || '';
-      const expiry     = r[4].f || '';
-      const price      = r[5].f || '';
-      const status     = r[6].f || '';
-      const pct        = r[7].f || '';
-      const rem        = r[8].f || '';
-      const deliv      = r[9].f || '';
-      const sc         = status === 'ITM' ? 'opt-itm' : status === 'OTM' ? 'opt-otm' : '';
-      const isITM      = status === 'ITM';
-
-      // Payoff calculation
-      const strikeNum  = parseFloat(String(r[1].v || '0').replace(/[^0-9.]/g, ''));
-      const priceNum   = typeof r[5].v === 'number' ? r[5].v : 0;
-      const remNum     = typeof r[8].v === 'number' ? r[8].v : 0;
-      let curVal = '', pnl = '', pnlClass = '';
+      const strikeNum = parseFloat(String(r[1].v || '0').replace(/[^0-9.]/g, ''));
+      const priceNum  = typeof r[5].v === 'number' ? r[5].v : 0;
+      const remNum    = typeof r[8].v === 'number' ? r[8].v : 0;
+      let curVal = '—', pnl = '—', pnlClass = '';
       if (strikeNum > 0 && remNum > 0) {
-        const tokensFromRem   = remNum / strikeNum;
-        const currentValNum   = tokensFromRem * priceNum;
-        const pnlNum          = currentValNum - remNum;
+        const currentValNum = (remNum / strikeNum) * priceNum;
+        const pnlNum        = currentValNum - remNum;
         curVal   = '$' + Math.round(currentValNum).toLocaleString();
         pnl      = (pnlNum >= 0 ? '+' : '') + '$' + Math.round(pnlNum).toLocaleString();
         pnlClass = pnlNum >= 0 ? 'opt-payoff-pos' : 'opt-payoff-neg';
       }
+      return { name, strikeFmt, tokens, expiry, price, status, pct, rem, deliv, isITM, sc, curVal, pnl, pnlClass };
+    });
 
-      const rowClass = isITM ? 'opt-row-itm' : '';
-      return `<tr class="${rowClass}">
-        <td>${name}</td>
-        <td>${strikeFmt}</td>
-        <td>${price}</td>
-        <td class="${sc}">${status}</td>
-        <td class="${sc}">${pct}</td>
-        <td>${total}</td>
-        <td>${rem}</td>
-        <td>${curVal}</td>
-        <td class="${pnlClass}">${pnl}</td>
-        <td>${tokens}</td>
-        <td>${expiry}</td>
-        <td class="opt-delivery">${deliv}</td>
-      </tr>`;
-    }).join('')}</tbody>`;
+    // Transposed table — metrics as rows, options as columns
+    const colHeaders = parsed.map(o =>
+      `<th class="${o.isITM ? 'opt-col-itm' : ''}">${o.name}</th>`
+    ).join('');
 
-    document.getElementById('call-options-container').innerHTML =
-      `<table class="options-table">${thead}${tbody}</table>`;
+    const row = (label, cells) =>
+      `<tr><td>${label}</td>${cells}</tr>`;
+
+    const cell = (val, cls = '') =>
+      `<td${cls ? ` class="${cls}"` : ''}>${val}</td>`;
+
+    const divider = `<tr class="opt-divider"><td colspan="${parsed.length + 1}"></td></tr>`;
+
+    const tbody = [
+      row('Strike Price',       parsed.map(o => cell(o.strikeFmt)).join('')),
+      row('Current Price',      parsed.map(o => cell(o.price)).join('')),
+      row('Status',             parsed.map(o => cell(o.status, o.sc)).join('')),
+      row('vs Strike',          parsed.map(o => cell(o.pct, o.sc)).join('')),
+      divider,
+      row('Remaining Notional', parsed.map(o => cell(o.rem)).join('')),
+      row('Current Value',      parsed.map(o => cell(o.curVal)).join('')),
+      row('Unrealized P&L',     parsed.map(o => cell(o.pnl, o.pnlClass)).join('')),
+      divider,
+      row('Tokens if Exercised',parsed.map(o => cell(o.tokens)).join('')),
+      row('Expiry',             parsed.map(o => cell(o.expiry)).join('')),
+      row('Delivery',           parsed.map(o => `<td class="opt-delivery-cell">${o.deliv}</td>`).join('')),
+    ].join('');
+
+    document.getElementById('call-options-container').innerHTML = `
+      <table class="options-table">
+        <thead><tr><th></th>${colHeaders}</tr></thead>
+        <tbody>${tbody}</tbody>
+      </table>`;
   }
 
   // ── Boot ─────────────────────────────────────────────────────
