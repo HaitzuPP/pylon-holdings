@@ -353,7 +353,9 @@
 
   // Chart events (annotated on history chart)
   const CHART_EVENTS = [
-    { date: '2026-05-04', label: 'SN44 exercise', color: '#1a7a3a' },
+    { date: '2024-12-14', label: 'NRN ATH $240M FDV', color: '#d4a017' },
+    { date: '2025-09-21', label: 'Portfolio ATH',      color: '#555'    },
+    { date: '2026-05-04', label: 'SN44 exercise',      color: '#1a7a3a' },
   ];
 
   // Try to parse a sheet history label into an ISO date for sorting
@@ -785,40 +787,48 @@
       const yScale = chart.scales.y;
       const dates  = chart.data.datasets[0].__dates || [];
 
-      CHART_EVENTS.forEach(ev => {
-        // Find nearest data index by date
-        let nearestIdx = 0, nearestDiff = Infinity;
-        dates.forEach((d, i) => {
-          const diff = Math.abs(new Date(d) - new Date(ev.date));
-          if (diff < nearestDiff) { nearestDiff = diff; nearestIdx = i; }
-        });
-
-        const x   = xScale.getPixelForValue(nearestIdx);
-        const topY = yScale.top;
-
-        ctx.save();
-        // Vertical dashed line
-        ctx.beginPath();
-        ctx.moveTo(x, topY + 18);
-        ctx.lineTo(x, yScale.bottom);
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = ev.color + '55';
-        ctx.setLineDash([3, 3]);
-        ctx.stroke();
-
-        // Label pill
-        ctx.font = 'bold 9px Arial';
-        ctx.textAlign = 'center';
-        const tw = ctx.measureText(ev.label).width + 12;
-        const tx = Math.min(Math.max(x, tw / 2 + 4), chart.width - tw / 2 - 4);
-        ctx.fillStyle = ev.color;
-        ctx.beginPath();
-        ctx.roundRect(tx - tw / 2, topY + 2, tw, 14, 2);
-        ctx.fill();
-        ctx.fillStyle = '#fff';
-        ctx.fillText(ev.label, tx, topY + 12);
-        ctx.restore();
+      // Resolve nearest data index per event, then stagger vertically if x positions are close
+    const resolved = CHART_EVENTS.map((ev, evIdx) => {
+      let nearestIdx = 0, nearestDiff = Infinity;
+      dates.forEach((d, i) => {
+        const diff = Math.abs(new Date(d) - new Date(ev.date));
+        if (diff < nearestDiff) { nearestDiff = diff; nearestIdx = i; }
       });
+      return { ev, nearestIdx };
+    });
+
+    resolved.forEach(({ ev, nearestIdx }, evIdx) => {
+      const x    = xScale.getPixelForValue(nearestIdx);
+      const topY = yScale.top;
+
+      // Vertical stagger: count how many prior events have x within 80px
+      const stagger = resolved.slice(0, evIdx).filter(r => {
+        const rx = xScale.getPixelForValue(r.nearestIdx);
+        return Math.abs(rx - x) < 80;
+      }).length;
+      const pillY = topY + 2 + stagger * 18;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(x, pillY + 14);
+      ctx.lineTo(x, yScale.bottom);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = ev.color + '55';
+      ctx.setLineDash([3, 3]);
+      ctx.stroke();
+
+      ctx.font = 'bold 9px Arial';
+      ctx.textAlign = 'center';
+      const tw = ctx.measureText(ev.label).width + 12;
+      const tx = Math.min(Math.max(x, tw / 2 + 4), chart.width - tw / 2 - 4);
+      ctx.fillStyle = ev.color;
+      ctx.beginPath();
+      ctx.roundRect(tx - tw / 2, pillY, tw, 14, 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.fillText(ev.label, tx, pillY + 10);
+      ctx.restore();
+    });
     }
   };
 
