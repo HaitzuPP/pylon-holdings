@@ -90,31 +90,49 @@
     table { width: 100%; border-collapse: collapse; }
     thead th {
       font-size: 10px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.5px; color: #999; padding: 0 8px 10px 0;
+      letter-spacing: 0.5px; color: #999; padding: 0 8px 12px 0;
       border-bottom: 1px solid #ddd; text-align: right; cursor: pointer;
       user-select: none; white-space: nowrap;
     }
-    thead th:first-child { text-align: left; padding-left: 0; }
+    thead th:first-child { text-align: left; padding-left: 14px; }
     thead th:hover, thead th.sorted { color: #111; }
     .sort-arrow { margin-left: 2px; opacity: 0.4; }
     thead th.sorted .sort-arrow { opacity: 1; }
 
     tbody td {
-      padding: 10px 8px 10px 0; border-bottom: 1px solid #f2f2f2;
+      padding: 11px 8px 11px 0; border-bottom: 1px solid #f2f2f2;
       text-align: right; font-variant-numeric: tabular-nums; vertical-align: middle;
     }
     tbody td:first-child { text-align: left; padding-left: 0; }
     tbody tr:last-child td { border-bottom: none; }
     tbody tr:hover td { background: #fafafa; }
-    .tok-name { font-weight: 600; }
-    .tok-cat  { font-size: 10px; color: #999; font-weight: 400; margin-left: 5px; }
+    tbody tr:hover td:first-child { background: none; }
+
+    /* Sector stripe: coloured left border on each row */
+    tbody tr { border-left: 3px solid transparent; transition: border-color 0.15s; }
+
+    /* Token cell */
+    .tok-cell { padding-left: 11px !important; }
+    .tok-name { font-weight: 700; font-size: 13px; }
+    .tok-cat  { font-size: 10px; font-weight: 400; margin-left: 6px; opacity: 0.55; }
+
+    /* Personal / Pylon: de-emphasised */
+    .split-val { color: #888; font-size: 12px; }
+
+    /* Total: prominent */
+    .total-val { font-weight: 700; font-size: 14px; color: #111; }
+
+    /* Alloc: full-height background fill */
+    .alloc-cell { position: relative; overflow: hidden; min-width: 90px; }
+    .alloc-fill {
+      position: absolute; top: 0; left: 0; bottom: 0;
+      opacity: 0.13; border-radius: 0 2px 2px 0;
+      transition: width 0.4s ease;
+    }
+    .alloc-pct { position: relative; z-index: 1; font-weight: 600; color: #333; }
+
     .null-val { color: #ccc; }
     .pct-val  { color: #555; }
-    .alloc-cell { position: relative; }
-    .alloc-bar  {
-      position: absolute; bottom: 0; right: 0;
-      height: 2px; background: #1a7a3a; border-radius: 1px;
-    }
 
     /* ── RIGHT PANEL ── */
     .right-panel { padding: 20px 24px 32px; display: flex; flex-direction: column; gap: 28px; }
@@ -658,9 +676,9 @@
       return sortAsc ? av - bv : bv - av;
     });
 
+    // Price (idx 1) removed — not useful for allocation review
     const cols = [
-      { label: 'Token', idx: 0 },
-      { label: 'Price',  idx: 1 },
+      { label: 'Token',    idx: 0 },
       { label: 'Personal', idx: 2 },
       { label: 'Pylon',    idx: 3 },
       { label: 'Total',    idx: 4 },
@@ -671,28 +689,35 @@
       ? '<span class="sort-arrow">↕</span>'
       : `<span class="sort-arrow">${sortAsc ? '↑' : '↓'}</span>`;
 
-    const catLabels = { crypto: 'Crypto', stables: 'Stable', illiquid: 'Illiquid' };
-    const catColors = { crypto: '#1a7a3a', stables: '#999', illiquid: '#d4a017' };
-
     const thead = `<thead><tr>${cols.map(c =>
       `<th class="${sortCol === c.idx ? 'sorted' : ''}" onclick="sortTable(${c.idx})">${c.label}${arrow(c.idx)}</th>`
     ).join('')}</tr></thead>`;
 
-    const tbody = `<tbody>${sorted.map(r => {
-      const cat    = getCategory(r[0]);
-      const barW   = Math.round((r[4] / maxVal) * 100);
-      return `<tr>
-        <td>
+    const tbody = `<tbody>${sorted.map((r, rowIdx) => {
+      const sector      = getSector(r[0]);
+      const sectorColor = SECTOR_COLORS[sector] || '#ccc';
+      const tokenColor  = getTokenColor(r[0], rowIdx);
+      const fillW       = Math.round((r[4] / maxVal) * 100);
+      const pct         = r[5] != null ? (r[5] * 100).toFixed(1) + '%' : '—';
+
+      const personalCell = r[2] > 0
+        ? `<span class="split-val">${fmtUSD(r[2])}</span>`
+        : `<span class="null-val">—</span>`;
+      const pylonCell = r[3] > 0
+        ? `<span class="split-val">${fmtUSD(r[3])}</span>`
+        : `<span class="null-val">—</span>`;
+
+      return `<tr style="border-left-color:${sectorColor}">
+        <td class="tok-cell">
           <span class="tok-name">${r[0]}</span>
-          <span class="tok-cat" style="color:${catColors[cat]}">${catLabels[cat]}</span>
+          <span class="tok-cat">${sector}</span>
         </td>
-        <td>${fmtPrice(r[1])}</td>
-        <td>${fmtUSD(r[2])}</td>
-        <td>${fmtUSD(r[3])}</td>
-        <td>${fmtUSD(r[4])}</td>
-        <td class="alloc-cell pct-val">
-          ${fmtPct(r[5])}
-          <div class="alloc-bar" style="width:${barW}%"></div>
+        <td>${personalCell}</td>
+        <td>${pylonCell}</td>
+        <td><span class="total-val">${fmtUSD(r[4])}</span></td>
+        <td class="alloc-cell">
+          <div class="alloc-fill" style="width:${fillW}%;background:${tokenColor}"></div>
+          <span class="alloc-pct">${pct}</span>
         </td>
       </tr>`;
     }).join('')}</tbody>`;
