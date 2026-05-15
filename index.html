@@ -109,6 +109,32 @@
     .chart-block {}
     .chart-block canvas { display: block; }
 
+    /* ── SECTOR SECTION ── */
+    .sector-section {
+      padding: 20px 32px 32px;
+      border-top: 1px solid #e5e5e5;
+    }
+    .sector-layout {
+      display: flex;
+      align-items: flex-start;
+      gap: 48px;
+      flex-wrap: wrap;
+    }
+    .sector-breakdown-table { min-width: 260px; padding-top: 4px; }
+    .sector-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid #f2f2f2;
+    }
+    .sector-row:last-child { border-bottom: none; }
+    .sector-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .sector-name { font-size: 12px; font-weight: 600; flex: 1; }
+    .sector-val  { font-size: 12px; font-variant-numeric: tabular-nums; color: #111; }
+    .sector-pct  { font-size: 11px; color: #999; width: 48px; text-align: right; }
+    .sector-note { font-size: 11px; color: #bbb; margin-top: 16px; font-style: italic; }
+
     /* ── HISTORY SECTION ── */
     .history-section {
       padding: 20px 32px 32px;
@@ -130,6 +156,7 @@
       .right-panel { padding: 18px 18px 24px; flex-direction: row; flex-wrap: wrap; gap: 18px; }
       .right-panel .chart-block { flex: 1 1 280px; min-width: 0; }
       .right-panel canvas { width: 100% !important; height: auto !important; }
+      .sector-section { padding: 18px 18px 24px; }
       .history-section { padding: 18px 18px 24px; }
       .aum-value { font-size: 22px; }
     }
@@ -215,6 +242,15 @@
 
 </div>
 
+<!-- SECTOR ANALYSIS -->
+<div class="sector-section">
+  <div class="section-label">Sector Analysis</div>
+  <div class="sector-layout">
+    <canvas id="sector-chart" width="260" height="200"></canvas>
+    <div class="sector-breakdown-table" id="sector-breakdown"><div class="loading">Loading...</div></div>
+  </div>
+</div>
+
 <!-- HISTORY LINE -->
 <div class="history-section">
   <div class="section-label">Portfolio Value Over Time</div>
@@ -227,7 +263,7 @@
   const GVIZ_URL   = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
   const REFRESH_MS = 5 * 60 * 1000;
 
-  let donutChart, splitChart, historyChart;
+  let donutChart, splitChart, historyChart, sectorChart;
   let holdings = [];
   let sortCol = 4, sortAsc = false;
   let countdownSec = 300;
@@ -243,6 +279,33 @@
     if (ILLIQUID.some(s => t.includes(s))) return 'illiquid';
     return 'crypto';
   }
+
+  // ── Sector mapping (edit tokens here to reclassify) ─────────
+  // Add or move tokens between sectors as the portfolio changes.
+  const SECTOR_MAP = {
+    AI:      ['TAO','RENDER','RNDR','FET','AKT','IO','GRASS','NEAR','WLD','OCEAN','NMR','AGIX','ALT','ARKM','PRIME','VIRTUAL','GFAL','ATH','CGPT'],
+    DeFi:    ['AAVE','UNI','LINK','DYDX','CRV','MKR','SNX','1INCH','COMP','BAL','SUSHI','GMX','PENDLE','LDO','JUP','JITO','ORCA','RAY','PYTH'],
+    'L1/L2': ['BTC','ETH','SOL','AVAX','MATIC','POL','ARB','OP','APT','SUI','TIA','ATOM','DOT','ADA','TON','INJ','SEI','KAVA','XRP','BNB'],
+  };
+
+  function getSector(token) {
+    const t = token.toUpperCase();
+    if (STABLES.some(s => t === s || t.startsWith(s))) return 'Stables';
+    if (ILLIQUID.some(s => t.includes(s))) return 'Illiquid';
+    for (const [sector, tokens] of Object.entries(SECTOR_MAP)) {
+      if (tokens.includes(t)) return sector;
+    }
+    return 'Other';
+  }
+
+  const SECTOR_COLORS = {
+    'AI':      '#1a7a3a',
+    'L1/L2':   '#555',
+    'DeFi':    '#52c57a',
+    'Stables': '#999',
+    'Illiquid':'#d4a017',
+    'Other':   '#ccc',
+  };
 
   // ── Format helpers ───────────────────────────────────────────
   function fmtUSD(v) {
@@ -309,6 +372,7 @@
     renderTable();
     renderDonut();
     renderSplitBar();
+    renderSectorDonut();
     renderHistory(histRows);
   }
 
@@ -498,6 +562,55 @@
         }
       }
     });
+  }
+
+  // ── Sector donut ─────────────────────────────────────────────
+  function renderSectorDonut() {
+    const totals = {};
+    holdings.forEach(r => {
+      const s = getSector(r[0]);
+      totals[s] = (totals[s] || 0) + (r[4] || 0);
+    });
+
+    const grandTotal = Object.values(totals).reduce((s, v) => s + v, 0) || 1;
+    const entries    = Object.entries(totals).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+    const labels     = entries.map(([k]) => k);
+    const values     = entries.map(([, v]) => v);
+    const colors     = labels.map(l => SECTOR_COLORS[l] || '#ccc');
+
+    if (sectorChart) sectorChart.destroy();
+    sectorChart = new Chart(document.getElementById('sector-chart'), {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 1, borderColor: '#fff' }] },
+      options: {
+        responsive: false,
+        cutout: '52%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` $${Math.round(ctx.raw).toLocaleString()}  (${(ctx.raw / grandTotal * 100).toFixed(1)}%)`
+            }
+          }
+        }
+      }
+    });
+
+    // Breakdown table
+    const aiEntry = entries.find(([k]) => k === 'AI');
+    const aiPct   = aiEntry ? (aiEntry[1] / grandTotal * 100).toFixed(1) : '0.0';
+
+    const rows = entries.map(([name, val]) => `
+      <div class="sector-row">
+        <div class="sector-dot" style="background:${SECTOR_COLORS[name] || '#ccc'}"></div>
+        <span class="sector-name">${name}</span>
+        <span class="sector-val">$${Math.round(val).toLocaleString()}</span>
+        <span class="sector-pct">${(val / grandTotal * 100).toFixed(1)}%</span>
+      </div>
+    `).join('');
+
+    document.getElementById('sector-breakdown').innerHTML =
+      rows + `<p class="sector-note">AI allocation: ${aiPct}% of total portfolio. Edit SECTOR_MAP in the source to reclassify tokens.</p>`;
   }
 
   // ── History line chart ───────────────────────────────────────
