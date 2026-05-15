@@ -70,10 +70,22 @@
 
     /* ── TABLE SECTION ── */
     .table-section { padding: 20px 32px 32px; border-right: 1px solid #e5e5e5; }
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
     .section-label {
       font-size: 10px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.9px; color: #999; margin-bottom: 12px;
+      letter-spacing: 0.9px; color: #999; margin-bottom: 0;
     }
+    .toggle-btn {
+      font-family: Arial; font-size: 10px; font-weight: 600;
+      padding: 3px 10px; border: 1px solid #ddd; background: #fff;
+      color: #666; cursor: pointer; letter-spacing: 0.3px;
+      transition: all 0.15s;
+    }
+    .toggle-btn:hover { border-color: #999; color: #333; }
+    .toggle-btn.active { border-color: #1a7a3a; color: #1a7a3a; background: #f0faf3; }
 
     table { width: 100%; border-collapse: collapse; }
     thead th {
@@ -164,6 +176,10 @@
     .opt-itm { color: #1a7a3a; font-weight: 600; }
     .opt-otm { color: #c0392b; font-weight: 600; }
     .opt-delivery { font-size: 11px; color: #555; max-width: 220px; text-align: left; line-height: 1.5; }
+    .opt-row-itm td { background: #f7fdf9; }
+    .opt-row-itm td:first-child { border-left: 2px solid #1a7a3a; padding-left: 10px; }
+    .opt-payoff-pos { color: #1a7a3a; font-weight: 600; }
+    .opt-payoff-neg { color: #c0392b; font-weight: 600; }
 
     /* ── LOADING / ERROR ── */
     .loading { color: #999; font-size: 12px; padding: 20px 0; }
@@ -250,7 +266,10 @@
 
   <!-- Holdings table -->
   <div class="table-section">
-    <div class="section-label">Holdings</div>
+    <div class="section-header">
+      <div class="section-label">Holdings</div>
+      <button class="toggle-btn" id="dust-btn" onclick="toggleDust()">Hide dust</button>
+    </div>
     <div id="table-container"><div class="loading">Loading...</div></div>
   </div>
 
@@ -279,7 +298,10 @@
 
 <!-- HISTORY LINE -->
 <div class="history-section">
-  <div class="section-label">Portfolio Value Over Time</div>
+  <div class="section-header">
+    <div class="section-label">Portfolio Value Over Time</div>
+    <button class="toggle-btn" id="btc-btn" onclick="toggleBTC()">BTC overlay</button>
+  </div>
   <div id="history-container"><div class="loading">Loading...</div></div>
 </div>
 
@@ -296,25 +318,36 @@
   const REFRESH_MS = 5 * 60 * 1000;
 
   // ── Historical AUM snapshots (hardcoded) ─────────────────────
-  // Format: [display label, value, ISO sort date]
+  // Format: [display label, portfolio value, ISO sort date, BTC price]
   const HARDCODED_HISTORY = [
-    ["Jul '23",     60994,  '2023-07-25'],
-    ["Nov '24",     90768,  '2024-11-13'],
-    ["Dec '24",    177437,  '2024-12-14'],
-    ["Jan '25",    360435,  '2025-01-17'],
-    ["Feb '25",    259259,  '2025-02-15'],
-    ["Mar '25",    253691,  '2025-03-15'],
-    ["Apr '25",    293853,  '2025-04-11'],
-    ["May '25",    383398,  '2025-05-11'],
-    ["Jun '25",    400853,  '2025-06-11'],
-    ["Jul '25",    426194,  '2025-07-12'],
-    ["Aug '25",    456043,  '2025-08-14'],
-    ["Sep '25",    567147,  '2025-09-21'],
-    ["Oct '25",    471797,  '2025-10-18'],
-    ["Dec 3 '25",  423981,  '2025-12-03'],
-    ["Dec 14 '25", 395337,  '2025-12-14'],
-    ["Jan '26",    414684,  '2026-01-15'],
-    ["Mar '26",    332136,  '2026-03-07'],
+    ["Jul '23",      60994, '2023-07-25',  29200],
+    ["Nov '24",      90768, '2024-11-13',  88265],
+    ["Dec '24",     177437, '2024-12-14', 101352],
+    ["Jan '25",     360435, '2025-01-17', 100045],
+    ["Feb '25",     259259, '2025-02-15',  97488],
+    ["Mar '25",     253691, '2025-03-15',  83972],
+    ["Apr '25",     293853, '2025-04-11',  79596],
+    ["May '25",     383398, '2025-05-11', 104631],
+    ["Jun '25",     400853, '2025-06-11', 110213],
+    ["Jul '25",     426194, '2025-07-12', 117571],
+    ["Aug '25",     456043, '2025-08-14', 123561],
+    ["Sep '25",     567147, '2025-09-21', 115716],
+    ["Oct '25",     471797, '2025-10-18', 106444],
+    ["Dec 3 '25",   423981, '2025-12-03',  91345],
+    ["Dec 14 '25",  395337, '2025-12-14',  90257],
+    ["Jan '26",     414684, '2026-01-15',  97008],
+    ["Mar '26",     332136, '2026-03-07',  68148],
+  ];
+
+  // BTC prices for sheet-derived history entries (keyed by ISO date)
+  const BTC_BY_DATE = {
+    '2026-05-14': 79278,
+    '2026-05-15': 81052,
+  };
+
+  // Chart events (annotated on history chart)
+  const CHART_EVENTS = [
+    { date: '2026-05-04', label: 'SN44 exercise', color: '#1a7a3a' },
   ];
 
   // Try to parse a sheet history label into an ISO date for sorting
@@ -337,6 +370,25 @@
   let sortCol = 4, sortAsc = false;
   let countdownSec = 300;
   let countdownInterval;
+  let showBTC   = false;
+  let hideDust  = false;
+  let lastMergedHistory = [];
+  const DUST_THRESHOLD = 1000;
+
+  function toggleBTC() {
+    showBTC = !showBTC;
+    const btn = document.getElementById('btc-btn');
+    btn.classList.toggle('active', showBTC);
+    renderHistory(lastMergedHistory);
+  }
+
+  function toggleDust() {
+    hideDust = !hideDust;
+    const btn = document.getElementById('dust-btn');
+    btn.classList.toggle('active', hideDust);
+    btn.textContent = hideDust ? 'Show dust' : 'Hide dust';
+    renderTable();
+  }
 
   // ── Categories ──────────────────────────────────────────────
   const STABLES  = ['USDC','USDT','USDG','BUSD','USDS','DAI','FRAX','TUSD','LUSD'];
@@ -439,19 +491,23 @@
     holdings = rows.slice(0, cutoff).filter(r => r[0] && r[4] != null && r[4] > 0);
 
     // Merge hardcoded history with sheet history rows, deduplicate by label, sort by date
-    const sheetHistForMerge = histRows.map(r => [r[0], r[1], parseHistLabel(r[0])]);
-    const hardcodedLabels   = new Set(HARDCODED_HISTORY.map(h => h[0]));
-    const sheetOnlyHist     = sheetHistForMerge.filter(r => !hardcodedLabels.has(r[0]));
-    const mergedHistory     = [...HARDCODED_HISTORY, ...sheetOnlyHist]
-      .sort((a, b) => a[2].localeCompare(b[2]))
-      .map(h => [h[0], h[1]]);
+    // Format: [label, portfolioValue, isoDate, btcPrice]
+    const hardcodedLabels = new Set(HARDCODED_HISTORY.map(h => h[0]));
+    const sheetOnlyHist   = histRows
+      .filter(r => !hardcodedLabels.has(r[0]))
+      .map(r => {
+        const iso = parseHistLabel(r[0]);
+        return [r[0], r[1], iso, BTC_BY_DATE[iso] || null];
+      });
+    lastMergedHistory = [...HARDCODED_HISTORY, ...sheetOnlyHist]
+      .sort((a, b) => a[2].localeCompare(b[2]));
 
     renderCategoryBar();
     renderTable();
     renderDonut();
     renderSplitBar();
     renderSectorDonut();
-    renderHistory(mergedHistory);
+    renderHistory(lastMergedHistory);
   }
 
   // ── Category bar ─────────────────────────────────────────────
@@ -470,8 +526,9 @@
 
   // ── Holdings table ───────────────────────────────────────────
   function renderTable() {
-    const maxVal = Math.max(...holdings.map(r => r[4] || 0));
-    const sorted = [...holdings].sort((a, b) => {
+    const visible = hideDust ? holdings.filter(r => (r[4] || 0) >= DUST_THRESHOLD) : holdings;
+    const maxVal = Math.max(...visible.map(r => r[4] || 0));
+    const sorted = [...visible].sort((a, b) => {
       const av = a[sortCol], bv = b[sortCol];
       if (av == null && bv == null) return 0;
       if (av == null) return 1;
@@ -705,76 +762,194 @@
       ctx.moveTo(x, topY);
       ctx.lineTo(x, botY);
       ctx.lineWidth = 1;
-      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+      ctx.strokeStyle = 'rgba(0,0,0,0.10)';
       ctx.setLineDash([4, 4]);
       ctx.stroke();
       ctx.restore();
     }
   };
 
-  function renderHistory(histRows) {
-    const container = document.getElementById('history-container');
+  // Draws event flags above the nearest data point
+  const eventsPlugin = {
+    id: 'events',
+    afterDraw(chart) {
+      if (!CHART_EVENTS.length) return;
+      const ctx    = chart.ctx;
+      const xScale = chart.scales.x;
+      const yScale = chart.scales.y;
+      const dates  = chart.data.datasets[0].__dates || [];
 
-    if (!histRows || histRows.length === 0) {
+      CHART_EVENTS.forEach(ev => {
+        // Find nearest data index by date
+        let nearestIdx = 0, nearestDiff = Infinity;
+        dates.forEach((d, i) => {
+          const diff = Math.abs(new Date(d) - new Date(ev.date));
+          if (diff < nearestDiff) { nearestDiff = diff; nearestIdx = i; }
+        });
+
+        const x   = xScale.getPixelForValue(nearestIdx);
+        const topY = yScale.top;
+
+        ctx.save();
+        // Vertical dashed line
+        ctx.beginPath();
+        ctx.moveTo(x, topY + 18);
+        ctx.lineTo(x, yScale.bottom);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = ev.color + '55';
+        ctx.setLineDash([3, 3]);
+        ctx.stroke();
+
+        // Label pill
+        ctx.font = 'bold 9px Arial';
+        ctx.textAlign = 'center';
+        const tw = ctx.measureText(ev.label).width + 12;
+        const tx = Math.min(Math.max(x, tw / 2 + 4), chart.width - tw / 2 - 4);
+        ctx.fillStyle = ev.color;
+        ctx.beginPath();
+        ctx.roundRect(tx - tw / 2, topY + 2, tw, 14, 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.fillText(ev.label, tx, topY + 12);
+        ctx.restore();
+      });
+    }
+  };
+
+  function renderHistory(rows) {
+    const container = document.getElementById('history-container');
+    if (!rows || rows.length === 0) {
       container.innerHTML = '<div class="loading" style="color:#bbb">No history data yet.</div>';
       return;
     }
 
     container.innerHTML = '';
-
-    // Responsive wrapper
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'position:relative; height:320px; width:100%;';
     container.appendChild(wrapper);
     const canvas = document.createElement('canvas');
     wrapper.appendChild(canvas);
 
-    const labels = histRows.map(r => r[0]);
-    const values = histRows.map(r => r[1]);
-    const minVal = Math.min(...values) * 0.90;
-    const maxVal = Math.max(...values) * 1.06;
-    const athIdx = values.indexOf(Math.max(...values));
+    const labels   = rows.map(r => r[0]);
+    const isoDates = rows.map(r => r[2]);
+    const values   = rows.map(r => r[1]);
+    const btcVals  = rows.map(r => r[3]);   // may contain nulls
 
-    // Point styling — highlight ATH
-    const pointRadius = values.map((_, i) => i === athIdx ? 6 : 3.5);
-    const pointBg     = values.map((_, i) => i === athIdx ? '#fff' : '#1a7a3a');
-    const pointBorder = values.map((_, i) => i === athIdx ? '#1a7a3a' : '#1a7a3a');
+    const athIdx = values.indexOf(Math.max(...values));
+    const portMin = Math.min(...values) * 0.90;
+    const portMax = Math.max(...values) * 1.06;
+    const btcNonNull = btcVals.filter(v => v != null);
+    const btcMin  = btcNonNull.length ? Math.min(...btcNonNull) * 0.90 : 0;
+    const btcMax  = btcNonNull.length ? Math.max(...btcNonNull) * 1.06 : 200000;
+
+    const pointRadius  = values.map((_, i) => i === athIdx ? 6 : 3.5);
+    const pointBg      = values.map((_, i) => i === athIdx ? '#fff' : '#1a7a3a');
     const pointBorderW = values.map((_, i) => i === athIdx ? 2.5 : 0);
+
+    const datasets = [
+      {
+        label: 'Portfolio',
+        data: values,
+        yAxisID: 'y',
+        borderColor: '#1a7a3a',
+        borderWidth: 2,
+        pointBackgroundColor: pointBg,
+        pointBorderColor: '#1a7a3a',
+        pointBorderWidth: pointBorderW,
+        pointRadius: pointRadius,
+        pointHoverRadius: 7,
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: '#1a7a3a',
+        pointHoverBorderWidth: 2,
+        fill: true,
+        backgroundColor: ctx => {
+          const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 320);
+          g.addColorStop(0, 'rgba(26,122,58,0.11)');
+          g.addColorStop(1, 'rgba(26,122,58,0)');
+          return g;
+        },
+        tension: 0.35,
+        __dates: isoDates,
+      }
+    ];
+
+    if (showBTC) {
+      datasets.push({
+        label: 'BTC',
+        data: btcVals,
+        yAxisID: 'yBTC',
+        borderColor: '#f7931a',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: '#f7931a',
+        borderDash: [],
+        fill: false,
+        tension: 0.35,
+        spanGaps: true,
+      });
+    }
+
+    const scales = {
+      x: {
+        grid: { display: false },
+        border: { display: false },
+        ticks: {
+          font: { family: 'Arial', size: 11 },
+          color: '#777',
+          maxRotation: 35,
+          minRotation: 0,
+          autoSkip: true,
+          maxTicksLimit: 14,
+        }
+      },
+      y: {
+        min: portMin,
+        max: portMax,
+        position: 'left',
+        grid: { color: '#f0f0f0' },
+        border: { display: false },
+        ticks: {
+          font: { family: 'Arial', size: 11 },
+          color: '#aaa',
+          maxTicksLimit: 6,
+          callback: v => '$' + (v / 1000).toFixed(0) + 'k'
+        }
+      }
+    };
+
+    if (showBTC) {
+      scales.yBTC = {
+        min: btcMin,
+        max: btcMax,
+        position: 'right',
+        grid: { display: false },
+        border: { display: false },
+        ticks: {
+          font: { family: 'Arial', size: 10 },
+          color: '#f7931a99',
+          maxTicksLimit: 5,
+          callback: v => '$' + (v / 1000).toFixed(0) + 'k'
+        }
+      };
+    }
 
     if (historyChart) historyChart.destroy();
     historyChart = new Chart(canvas, {
       type: 'line',
-      plugins: [crosshairPlugin],
-      data: {
-        labels,
-        datasets: [{
-          data: values,
-          borderColor: '#1a7a3a',
-          borderWidth: 2,
-          pointBackgroundColor: pointBg,
-          pointBorderColor: pointBorder,
-          pointBorderWidth: pointBorderW,
-          pointRadius: pointRadius,
-          pointHoverRadius: 7,
-          pointHoverBackgroundColor: '#fff',
-          pointHoverBorderColor: '#1a7a3a',
-          pointHoverBorderWidth: 2.5,
-          fill: true,
-          backgroundColor: (ctx) => {
-            const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 320);
-            g.addColorStop(0, 'rgba(26,122,58,0.11)');
-            g.addColorStop(1, 'rgba(26,122,58,0)');
-            return g;
-          },
-          tension: 0.35,
-        }]
-      },
+      plugins: [crosshairPlugin, eventsPlugin],
+      data: { labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { display: false },
+          legend: {
+            display: showBTC,
+            position: 'top',
+            align: 'end',
+            labels: { font: { family: 'Arial', size: 10 }, boxWidth: 10, padding: 12, color: '#555' }
+          },
           tooltip: {
             backgroundColor: '#fff',
             borderColor: '#e0e0e0',
@@ -783,54 +958,33 @@
             bodyColor: '#555',
             padding: 12,
             cornerRadius: 2,
-            displayColors: false,
+            displayColors: showBTC,
             callbacks: {
               title: ctx => ctx[0].label,
               label: ctx => {
-                const i   = ctx.dataIndex;
-                const val = values[i];
-                const prev = i > 0 ? values[i - 1] : null;
+                const i    = ctx.dataIndex;
+                const val  = ctx.raw;
+                const prev = i > 0 ? ctx.dataset.data[i - 1] : null;
+                if (val == null) return null;
                 const delta = prev != null ? ((val - prev) / prev * 100) : null;
-                const lines = [` $${Math.round(val).toLocaleString()}`];
+                const prefix = ctx.dataset.label === 'BTC' ? ' BTC ' : ' Portfolio ';
+                const lines = [prefix + '$' + Math.round(val).toLocaleString()];
                 if (delta != null) {
                   const sign = delta >= 0 ? '+' : '';
-                  lines.push(` ${sign}${delta.toFixed(1)}% vs prior`);
+                  lines.push(`  ${sign}${delta.toFixed(1)}% vs prior`);
                 }
-                if (i === athIdx) lines.push(' All-time high');
+                if (ctx.dataset.label === 'Portfolio' && i === athIdx) lines.push('  All-time high');
                 return lines;
               }
             }
           }
         },
-        scales: {
-          x: {
-            grid: { display: false },
-            border: { display: false },
-            ticks: {
-              font: { family: 'Arial', size: 11 },
-              color: '#777',
-              maxRotation: 35,
-              minRotation: 0,
-              autoSkip: true,
-              maxTicksLimit: 14,
-            }
-          },
-          y: {
-            min: minVal,
-            max: maxVal,
-            position: 'left',
-            grid: { color: '#f0f0f0', drawBorder: false },
-            border: { display: false, dash: [4, 4] },
-            ticks: {
-              font: { family: 'Arial', size: 11 },
-              color: '#aaa',
-              maxTicksLimit: 6,
-              callback: v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)
-            }
-          }
-        }
+        scales
       }
     });
+
+    // Store dates reference on dataset for eventsPlugin
+    historyChart.data.datasets[0].__dates = isoDates;
   }
 
   // ── Countdown + auto-refresh ─────────────────────────────────
@@ -865,10 +1019,16 @@
       const res  = await fetch(CALL_OPTIONS_URL + '&_=' + Date.now());
       const text = await res.text();
       const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
-      const rows = json.table.rows.map(r => r.c.map(c => c ? (c.f !== null && c.f !== undefined ? c.f : c.v) : null));
+      // Preserve both raw (v) and formatted (f) values
+      const rows = json.table.rows.map(r => r.c.map(c => c
+        ? { v: c.v, f: c.f !== null && c.f !== undefined ? c.f : c.v }
+        : { v: null, f: null }
+      ));
 
-      // First 3 rows are the 3 option positions before "TRANSACTIONS"
-      const options = rows.filter(r => r[0] && !['TRANSACTIONS','Date','Month','Color Key:','TOTAL EXPECTED','EXPECTED TOKENS'].some(s => String(r[0]).startsWith(s)) && rows.indexOf(r) < rows.findIndex(r2 => String(r2[0]).startsWith('TRANSACTIONS')));
+      const txIdx   = rows.findIndex(r => String(r[0].v).startsWith('TRANSACTIONS'));
+      const options = rows
+        .slice(0, txIdx > 0 ? txIdx : rows.length)
+        .filter(r => r[0].v && !['TRANSACTIONS','Date','Month','Color Key:','TOTAL EXPECTED','EXPECTED TOKENS'].some(s => String(r[0].v).startsWith(s)));
 
       renderCallOptions(options);
     } catch (e) {
@@ -892,31 +1052,52 @@
       <th>% vs Strike</th>
       <th>Total Notional</th>
       <th>Remaining Notional</th>
+      <th>Current Value</th>
+      <th>Unrealized P&amp;L</th>
       <th>Tokens if Exercised</th>
       <th>Expiry</th>
       <th style="text-align:left">Delivery Terms</th>
     </tr></thead>`;
 
     const tbody = `<tbody>${options.map(r => {
-      const name   = r[0] || '';
-      const strike = r[1] || '';
-      const total  = r[2] || '';
-      const tokens = r[3] || '';
-      const expiry = r[4] || '';
-      const price  = r[5] || '';
-      const status = r[6] || '';
-      const pct    = r[7] || '';
-      const rem    = r[8] || '';
-      const deliv  = r[9] || '';
-      const sc     = status === 'ITM' ? 'opt-itm' : status === 'OTM' ? 'opt-otm' : '';
-      return `<tr>
+      const name       = r[0].f || '';
+      const strikeFmt  = r[1].f || '';
+      const total      = r[2].f || '';
+      const tokens     = r[3].f || '';
+      const expiry     = r[4].f || '';
+      const price      = r[5].f || '';
+      const status     = r[6].f || '';
+      const pct        = r[7].f || '';
+      const rem        = r[8].f || '';
+      const deliv      = r[9].f || '';
+      const sc         = status === 'ITM' ? 'opt-itm' : status === 'OTM' ? 'opt-otm' : '';
+      const isITM      = status === 'ITM';
+
+      // Payoff calculation
+      const strikeNum  = parseFloat(String(r[1].v || '0').replace(/[^0-9.]/g, ''));
+      const priceNum   = typeof r[5].v === 'number' ? r[5].v : 0;
+      const remNum     = typeof r[8].v === 'number' ? r[8].v : 0;
+      let curVal = '', pnl = '', pnlClass = '';
+      if (strikeNum > 0 && remNum > 0) {
+        const tokensFromRem   = remNum / strikeNum;
+        const currentValNum   = tokensFromRem * priceNum;
+        const pnlNum          = currentValNum - remNum;
+        curVal   = '$' + Math.round(currentValNum).toLocaleString();
+        pnl      = (pnlNum >= 0 ? '+' : '') + '$' + Math.round(pnlNum).toLocaleString();
+        pnlClass = pnlNum >= 0 ? 'opt-payoff-pos' : 'opt-payoff-neg';
+      }
+
+      const rowClass = isITM ? 'opt-row-itm' : '';
+      return `<tr class="${rowClass}">
         <td>${name}</td>
-        <td>${strike}</td>
+        <td>${strikeFmt}</td>
         <td>${price}</td>
         <td class="${sc}">${status}</td>
         <td class="${sc}">${pct}</td>
         <td>${total}</td>
         <td>${rem}</td>
+        <td>${curVal}</td>
+        <td class="${pnlClass}">${pnl}</td>
         <td>${tokens}</td>
         <td>${expiry}</td>
         <td class="opt-delivery">${deliv}</td>
