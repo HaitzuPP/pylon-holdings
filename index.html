@@ -327,32 +327,30 @@
   const REFRESH_MS = 5 * 60 * 1000;
 
   // ── Historical AUM snapshots (hardcoded) ─────────────────────
-  // Format: [display label, portfolio value, ISO sort date, BTC price]
+  // Format: [display label, portfolio value, ISO sort date, BTC price, HYPE price]
   const HARDCODED_HISTORY = [
-    ["Jul '23",      60994, '2023-07-25',  29200],
-    ["Nov '24",      90768, '2024-11-13',  88265],
-    ["Dec '24",     177437, '2024-12-14', 101352],
-    ["Jan '25",     360435, '2025-01-17', 100045],
-    ["Feb '25",     259259, '2025-02-15',  97488],
-    ["Mar '25",     253691, '2025-03-15',  83972],
-    ["Apr '25",     293853, '2025-04-11',  79596],
-    ["May '25",     383398, '2025-05-11', 104631],
-    ["Jun '25",     400853, '2025-06-11', 110213],
-    ["Jul '25",     426194, '2025-07-12', 117571],
-    ["Aug '25",     456043, '2025-08-14', 123561],
-    ["Sep '25",     567147, '2025-09-21', 115716],
-    ["Oct '25",     471797, '2025-10-18', 106444],
-    ["Dec 3 '25",   423981, '2025-12-03',  91345],
-    ["Dec 14 '25",  395337, '2025-12-14',  90257],
-    ["Jan '26",     414684, '2026-01-15',  97008],
-    ["Mar '26",     332136, '2026-03-07',  68148],
+    ["Jul '23",      60994, '2023-07-25',  29200,   null],
+    ["Nov '24",      90768, '2024-11-13',  88265,   null],
+    ["Dec '24",     177437, '2024-12-14', 101352,  19.45],
+    ["Jan '25",     360435, '2025-01-17', 100045,  23.57],
+    ["Feb '25",     259259, '2025-02-15',  97488,  26.22],
+    ["Mar '25",     253691, '2025-03-15',  83972,  13.75],
+    ["Apr '25",     293853, '2025-04-11',  79596,  14.34],
+    ["May '25",     383398, '2025-05-11', 104631,  26.09],
+    ["Jun '25",     400853, '2025-06-11', 110213,  42.14],
+    ["Jul '25",     426194, '2025-07-12', 117571,  46.18],
+    ["Aug '25",     456043, '2025-08-14', 123561,  47.73],
+    ["Sep '25",     567147, '2025-09-21', 115716,  54.11],
+    ["Oct '25",     471797, '2025-10-18', 106444,  35.38],
+    ["Dec 3 '25",   423981, '2025-12-03',  91345,  33.89],
+    ["Dec 14 '25",  395337, '2025-12-14',  90257,  29.59],
+    ["Jan '26",     414684, '2026-01-15',  97008,  25.92],
+    ["Mar '26",     332136, '2026-03-07',  68148,  31.16],
   ];
 
-  // BTC prices for sheet-derived history entries (keyed by ISO date)
-  const BTC_BY_DATE = {
-    '2026-05-14': 79278,
-    '2026-05-15': 81052,
-  };
+  // BTC + HYPE prices for sheet-derived history entries (keyed by ISO date)
+  const BTC_BY_DATE  = { '2026-05-14': 79278,  '2026-05-15': 81052  };
+  const HYPE_BY_DATE = { '2026-05-14': 38.88,  '2026-05-15': 44.12  };
 
   // Chart events (annotated on history chart)
   const CHART_EVENTS = [
@@ -506,7 +504,7 @@
       .filter(r => !hardcodedLabels.has(r[0]))
       .map(r => {
         const iso = parseHistLabel(r[0]);
-        return [r[0], r[1], iso, BTC_BY_DATE[iso] || null];
+        return [r[0], r[1], iso, BTC_BY_DATE[iso] || null, HYPE_BY_DATE[iso] || null];
       });
     lastMergedHistory = [...HARDCODED_HISTORY, ...sheetOnlyHist]
       .sort((a, b) => a[2].localeCompare(b[2]));
@@ -842,14 +840,23 @@
     const labels   = rows.map(r => r[0]);
     const isoDates = rows.map(r => r[2]);
     const values   = rows.map(r => r[1]);
-    const btcVals  = rows.map(r => r[3]);   // may contain nulls
+    const btcRaw   = rows.map(r => r[3]);
+    const hypeRaw  = rows.map(r => r[4]);
 
-    const athIdx = values.indexOf(Math.max(...values));
+    // Index overlay lines to 100 at their first non-null value
+    function indexTo100(vals) {
+      const base = vals.find(v => v != null);
+      return base ? vals.map(v => v != null ? Math.round(v / base * 1000) / 10 : null) : vals;
+    }
+    const btcIdx  = indexTo100(btcRaw);
+    const hypeIdx = indexTo100(hypeRaw);
+
+    const athIdx  = values.indexOf(Math.max(...values));
     const portMin = Math.min(...values) * 0.90;
     const portMax = Math.max(...values) * 1.06;
-    const btcNonNull = btcVals.filter(v => v != null);
-    const btcMin  = btcNonNull.length ? Math.min(...btcNonNull) * 0.90 : 0;
-    const btcMax  = btcNonNull.length ? Math.max(...btcNonNull) * 1.06 : 200000;
+    const overlayNonNull = [...btcIdx, ...hypeIdx].filter(v => v != null);
+    const overlayMin = overlayNonNull.length ? Math.min(...overlayNonNull) * 0.90 : 0;
+    const overlayMax = overlayNonNull.length ? Math.max(...overlayNonNull) * 1.10 : 200;
 
     const pointRadius  = values.map((_, i) => i === athIdx ? 6 : 3.5);
     const pointBg      = values.map((_, i) => i === athIdx ? '#fff' : '#1a7a3a');
@@ -884,15 +891,27 @@
 
     if (showBTC) {
       datasets.push({
-        label: 'BTC',
-        data: btcVals,
-        yAxisID: 'yBTC',
+        label: 'BTC (indexed)',
+        data: btcIdx,
+        yAxisID: 'yOverlay',
         borderColor: '#f7931a',
         borderWidth: 1.5,
         pointRadius: 0,
         pointHoverRadius: 5,
         pointHoverBackgroundColor: '#f7931a',
-        borderDash: [],
+        fill: false,
+        tension: 0.35,
+        spanGaps: true,
+      });
+      datasets.push({
+        label: 'HYPE (indexed)',
+        data: hypeIdx,
+        yAxisID: 'yOverlay',
+        borderColor: '#6366f1',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: '#6366f1',
         fill: false,
         tension: 0.35,
         spanGaps: true,
@@ -928,17 +947,23 @@
     };
 
     if (showBTC) {
-      scales.yBTC = {
-        min: btcMin,
-        max: btcMax,
+      scales.yOverlay = {
+        min: overlayMin,
+        max: overlayMax,
         position: 'right',
         grid: { display: false },
         border: { display: false },
         ticks: {
           font: { family: 'Arial', size: 10 },
-          color: '#f7931a99',
+          color: '#aaa',
           maxTicksLimit: 5,
-          callback: v => '$' + (v / 1000).toFixed(0) + 'k'
+          callback: v => v.toFixed(0)
+        },
+        title: {
+          display: true,
+          text: 'Index (100 = start)',
+          font: { family: 'Arial', size: 9 },
+          color: '#bbb',
         }
       };
     }
@@ -975,14 +1000,24 @@
                 const val  = ctx.raw;
                 const prev = i > 0 ? ctx.dataset.data[i - 1] : null;
                 if (val == null) return null;
+                const lbl = ctx.dataset.label;
+                const isOverlay = lbl.includes('indexed');
+                if (isOverlay) {
+                  const name = lbl.replace(' (indexed)', '');
+                  const rawArr = name === 'BTC' ? btcRaw : hypeRaw;
+                  const rawVal = rawArr[i];
+                  const rawStr = rawVal != null
+                    ? (rawVal >= 1000 ? '$' + Math.round(rawVal).toLocaleString() : '$' + rawVal.toFixed(2))
+                    : '';
+                  return ` ${name}  ${rawStr}  (${val.toFixed(1)})`;
+                }
                 const delta = prev != null ? ((val - prev) / prev * 100) : null;
-                const prefix = ctx.dataset.label === 'BTC' ? ' BTC ' : ' Portfolio ';
-                const lines = [prefix + '$' + Math.round(val).toLocaleString()];
+                const lines = [` Portfolio  $${Math.round(val).toLocaleString()}`];
                 if (delta != null) {
                   const sign = delta >= 0 ? '+' : '';
-                  lines.push(`  ${sign}${delta.toFixed(1)}% vs prior`);
+                  lines.push(`   ${sign}${delta.toFixed(1)}% vs prior`);
                 }
-                if (ctx.dataset.label === 'Portfolio' && i === athIdx) lines.push('  All-time high');
+                if (i === athIdx) lines.push('   All-time high');
                 return lines;
               }
             }
