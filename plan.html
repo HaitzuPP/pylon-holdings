@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Execution Plan — Pylon</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #fff; color: #111; font-size: 13px; }
+    a { color: inherit; text-decoration: none; }
+
+    /* ── HEADER ── */
+    header {
+      padding: 20px 32px 16px;
+      border-bottom: 2px solid #111;
+      display: flex; align-items: flex-end;
+      justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    }
+    .back-link { font-size: 11px; color: #999; margin-bottom: 8px; display: block; }
+    .back-link:hover { color: #111; }
+    header h1 { font-size: 16px; font-weight: 700; }
+    .phase-badge {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.8px; padding: 6px 16px; color: #fff;
+    }
+
+    /* ── SECTIONS ── */
+    .section { padding: 24px 32px; border-bottom: 1px solid #e5e5e5; }
+    .section-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.9px; color: #999; margin-bottom: 16px;
+    }
+
+    /* ── TIMELINE ── */
+    .timeline-wrap {
+      display: flex; border: 1px solid #e0e0e0; overflow: hidden;
+    }
+    .timeline-week {
+      flex: 1; padding: 14px 16px; border-right: 1px solid #e0e0e0;
+      position: relative; transition: background 0.2s;
+    }
+    .timeline-week:last-child { border-right: none; }
+    .timeline-week.phase1 { background: #f7fdf9; }
+    .timeline-week.phase2 { background: #f5f5ff; }
+    .timeline-week.current { outline: 2px solid #111; outline-offset: -2px; z-index: 1; }
+    .tw-phase { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #bbb; margin-bottom: 6px; }
+    .tw-week  { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+    .tw-sell  { font-size: 11px; color: #555; line-height: 1.7; }
+    .tw-target { font-size: 12px; font-weight: 700; color: #111; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e0e0e0; }
+    .tw-current-pill {
+      display: inline-block; font-size: 9px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      background: #111; color: #fff; padding: 1px 6px; margin-left: 6px; vertical-align: middle;
+    }
+
+    /* ── TWO-COL GRID ── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+
+    /* ── PROGRESS ── */
+    .progress-group { margin-bottom: 18px; }
+    .progress-group:last-child { margin-bottom: 0; }
+    .progress-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px; }
+    .progress-name   { font-size: 12px; font-weight: 700; }
+    .progress-vals   { font-size: 12px; font-variant-numeric: tabular-nums; color: #555; }
+    .progress-track  { height: 8px; background: #f0f0f0; overflow: hidden; }
+    .progress-fill   { height: 100%; transition: width 0.5s ease; }
+    .progress-note   { font-size: 11px; color: #999; margin-top: 5px; }
+    .progress-note.good { color: #1a7a3a; font-weight: 600; }
+
+    /* ── LOG FORM ── */
+    .log-form { background: #f9f9f9; border: 1px solid #e5e5e5; padding: 18px 20px; }
+    .log-form-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: #777; margin-bottom: 14px; }
+    .log-inputs { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+    .log-field { flex: 1; min-width: 70px; }
+    .log-field label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #aaa; margin-bottom: 4px; }
+    .log-field input {
+      width: 100%; border: 1px solid #ddd; padding: 7px 8px;
+      font-family: Arial; font-size: 13px; color: #111;
+      font-variant-numeric: tabular-nums; background: #fff;
+    }
+    .log-field input:focus { outline: 2px solid #111; border-color: #111; }
+    .log-btn {
+      font-family: Arial; font-size: 12px; font-weight: 700;
+      padding: 8px 18px; background: #111; color: #fff; border: none;
+      cursor: pointer; white-space: nowrap;
+    }
+    .log-btn:hover { background: #333; }
+    .log-preview { font-size: 11px; color: #555; margin-top: 10px; min-height: 16px; }
+
+    /* ── STAT BLOCKS ── */
+    .stat-row { display: flex; gap: 28px; flex-wrap: wrap; margin-bottom: 20px; }
+    .stat-block {}
+    .stat-val { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; }
+    .stat-val.green { color: #1a7a3a; }
+    .stat-val.red   { color: #c0392b; }
+    .stat-val.amber { color: #d4a017; }
+    .stat-val.blue  { color: #627eea; }
+    .stat-val.purple{ color: #9945ff; }
+    .stat-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #999; margin-top: 4px; }
+
+    /* ── SN44 ROUNDS ── */
+    .sn44-round-row {
+      display: flex; align-items: center; gap: 0;
+      padding: 9px 0; border-bottom: 1px solid #f2f2f2; font-size: 12px;
+    }
+    .sn44-round-row:last-child { border-bottom: none; }
+    .sn44-rnum  { font-weight: 700; width: 24px; flex-shrink: 0; color: #111; }
+    .sn44-rdate { color: #999; width: 64px; flex-shrink: 0; font-size: 11px; }
+    .sn44-rliq  { color: #1a7a3a; font-weight: 600; width: 110px; flex-shrink: 0; }
+    .sn44-rlock { color: #d4a017; width: 110px; flex-shrink: 0; }
+    .sn44-runlock { font-size: 10px; color: #bbb; margin-left: auto; }
+
+    /* ── DECISION RULES ── */
+    .rule-item {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 13px 0; border-bottom: 1px solid #f2f2f2; font-size: 13px; line-height: 1.55;
+    }
+    .rule-item:last-child { border-bottom: none; }
+    .rule-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; font-weight: 700; }
+
+    /* ── SELL LOG ── */
+    .log-table { width: 100%; border-collapse: collapse; }
+    .log-table th {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; color: #999; padding: 0 8px 8px 0;
+      border-bottom: 1px solid #ddd; text-align: right;
+    }
+    .log-table th:first-child { text-align: left; }
+    .log-table td {
+      padding: 9px 8px 9px 0; border-bottom: 1px solid #f2f2f2;
+      text-align: right; font-variant-numeric: tabular-nums; font-size: 12px;
+    }
+    .log-table td:first-child { text-align: left; color: #777; }
+    .log-table tbody tr:last-child td { border-bottom: none; }
+    .log-empty { color: #bbb; font-size: 12px; padding: 16px 0; font-style: italic; }
+    .del-btn { background: none; border: none; color: #ddd; cursor: pointer; font-size: 13px; padding: 0; }
+    .del-btn:hover { color: #c0392b; }
+
+    /* ── SETUP OVERLAY ── */
+    .setup-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+      display: flex; align-items: center; justify-content: center; z-index: 100;
+    }
+    .setup-modal {
+      background: #fff; padding: 32px; max-width: 400px; width: 92%;
+      border-top: 3px solid #111;
+    }
+    .setup-modal h2 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .setup-modal p  { font-size: 12px; color: #555; margin-bottom: 22px; line-height: 1.65; }
+    .setup-field    { margin-bottom: 14px; }
+    .setup-field label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #aaa; margin-bottom: 5px; }
+    .setup-field input { width: 100%; border: 1px solid #ddd; padding: 9px 12px; font-family: Arial; font-size: 13px; }
+    .setup-field input:focus { outline: 2px solid #111; }
+    .setup-start-btn {
+      width: 100%; font-family: Arial; font-size: 13px; font-weight: 700;
+      padding: 11px; background: #111; color: #fff; border: none; cursor: pointer; margin-top: 6px;
+    }
+    .setup-start-btn:hover { background: #333; }
+
+    /* ── GHOST BTN ── */
+    .ghost-btn {
+      font-family: Arial; font-size: 11px; padding: 5px 14px;
+      border: 1px solid #ddd; background: #fff; color: #666; cursor: pointer;
+    }
+    .ghost-btn:hover { border-color: #999; color: #333; }
+    .ghost-btn.danger:hover { color: #c0392b; border-color: #c0392b; }
+
+    /* ── MOBILE ── */
+    @media (max-width: 760px) {
+      header { padding: 16px 18px 14px; }
+      .section { padding: 18px 18px 22px; }
+      .two-col { grid-template-columns: 1fr; gap: 20px; }
+      .timeline-wrap { flex-direction: column; }
+      .timeline-week { border-right: none; border-bottom: 1px solid #e0e0e0; }
+      .timeline-week:last-child { border-bottom: none; }
+      .stat-val { font-size: 18px; }
+      .stat-row { gap: 18px; }
+      .sn44-rlock, .sn44-runlock { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Setup overlay -->
+<div class="setup-overlay" id="setup-overlay">
+  <div class="setup-modal">
+    <h2>Start the 30-Day Plan</h2>
+    <p>Set the plan start date and current stablecoin balance. Progress will be saved locally in your browser.</p>
+    <div class="setup-field">
+      <label>Plan start date</label>
+      <input type="date" id="setup-date">
+    </div>
+    <div class="setup-field">
+      <label>Current stables ($)</label>
+      <input type="number" id="setup-stables" value="105264" step="1000">
+    </div>
+    <button class="setup-start-btn" onclick="startPlan()">Start tracking</button>
+  </div>
+</div>
+
+<!-- Header -->
+<header>
+  <div>
+    <a class="back-link" href="index.html">← Portfolio Dashboard</a>
+    <h1>30-Day Execution Plan</h1>
+  </div>
+  <div id="phase-badge" class="phase-badge" style="background:#999">—</div>
+</header>
+
+<!-- Timeline -->
+<div class="section">
+  <div class="section-label">4-Week Schedule</div>
+  <div class="timeline-wrap">
+    <div class="timeline-week phase1" id="tw-1">
+      <div class="tw-phase">Phase 1</div>
+      <div class="tw-week">Week 1 <span class="tw-current-pill" id="pill-1" style="display:none">Now</span></div>
+      <div class="tw-sell">JITOSOL: 156 tokens<br>ETH: ~4.5 ETH</div>
+      <div class="tw-target">Target ~$28k</div>
+    </div>
+    <div class="timeline-week phase1" id="tw-2">
+      <div class="tw-phase">Phase 1</div>
+      <div class="tw-week">Week 2 <span class="tw-current-pill" id="pill-2" style="display:none">Now</span></div>
+      <div class="tw-sell">JITOSOL: 156 tokens<br>ETH: ~4.5 ETH</div>
+      <div class="tw-target">Target ~$28k</div>
+    </div>
+    <div class="timeline-week phase2" id="tw-3">
+      <div class="tw-phase">Phase 2</div>
+      <div class="tw-week">Week 3 <span class="tw-current-pill" id="pill-3" style="display:none">Now</span></div>
+      <div class="tw-sell">JITOSOL: 0 (fully exited)<br>ETH: ~9 ETH</div>
+      <div class="tw-target">Target ~$20k</div>
+    </div>
+    <div class="timeline-week phase2" id="tw-4">
+      <div class="tw-phase">Phase 2</div>
+      <div class="tw-week">Week 4 <span class="tw-current-pill" id="pill-4" style="display:none">Now</span></div>
+      <div class="tw-sell">JITOSOL: 0 (fully exited)<br>ETH: ~9 ETH</div>
+      <div class="tw-target">Target ~$20k</div>
+    </div>
+  </div>
+</div>
+
+<!-- This Week + Log Sell -->
+<div class="section">
+  <div class="section-label" id="week-section-label">This Week</div>
+  <div class="two-col">
+    <div id="week-progress"><div class="log-empty">Start the plan to track weekly progress.</div></div>
+    <div>
+      <div class="log-form">
+        <div class="log-form-title">Log a sell</div>
+        <div class="log-inputs">
+          <div class="log-field" style="min-width:80px">
+            <label>ETH qty</label>
+            <input type="number" id="log-eth" placeholder="0.00" step="0.01" min="0" oninput="updatePreview()">
+          </div>
+          <div class="log-field" style="min-width:80px">
+            <label>JITO qty</label>
+            <input type="number" id="log-jito" placeholder="0" step="1" min="0" oninput="updatePreview()">
+          </div>
+          <div class="log-field" style="min-width:80px">
+            <label>ETH price</label>
+            <input type="number" id="log-eth-price" value="2260" step="10" oninput="updatePreview()">
+          </div>
+          <div class="log-field" style="min-width:80px">
+            <label>JITO price</label>
+            <input type="number" id="log-jito-price" value="122" step="1" oninput="updatePreview()">
+          </div>
+          <button class="log-btn" onclick="logSell()">Add sell</button>
+        </div>
+        <div class="log-preview" id="log-preview">Enter quantities to preview proceeds.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Stablecoin Target -->
+<div class="section">
+  <div class="section-label">Stablecoin Target</div>
+  <div class="stat-row">
+    <div class="stat-block">
+      <div class="stat-val" id="stat-current-stables">—</div>
+      <div class="stat-label">Current Stables</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-val">$150k</div>
+      <div class="stat-label">Floor Target</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-val" id="stat-gap">—</div>
+      <div class="stat-label">Gap to Floor</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-val blue" id="stat-proceeds">$0</div>
+      <div class="stat-label">Proceeds Logged</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-val amber">$26k</div>
+      <div class="stat-label">TIG Budget (at floor)</div>
+    </div>
+  </div>
+
+  <div class="progress-group">
+    <div class="progress-header">
+      <span class="progress-name">Progress to $150k floor</span>
+      <span class="progress-vals" id="stable-pct-label">—</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="stable-fill" style="background:#1a7a3a;width:0%"></div>
+    </div>
+    <div class="progress-note" id="stable-note"></div>
+  </div>
+
+  <div class="progress-group" style="margin-top:20px">
+    <div class="progress-header">
+      <span class="progress-name">Proceeds toward $76.7k total target</span>
+      <span class="progress-vals" id="proceeds-pct-label">$0 / $76,700</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="proceeds-fill" style="background:#627eea;width:0%"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SN44 Exercise -->
+<div class="section">
+  <div class="section-label">SN44 Exercise Schedule</div>
+  <div class="two-col">
+    <div>
+      <div class="stat-row" style="margin-bottom:18px">
+        <div class="stat-block">
+          <div class="stat-val amber" id="stat-sn44-remaining">45,732</div>
+          <div class="stat-label">Tokens Remaining</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-val">7,903</div>
+          <div class="stat-label">Per Round</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-val">~6</div>
+          <div class="stat-label">Months to Clear</div>
+        </div>
+      </div>
+      <div class="progress-group">
+        <div class="progress-header">
+          <span class="progress-name">Tokens exercised</span>
+          <span class="progress-vals" id="sn44-pct-label">0 / 45,732</span>
+        </div>
+        <div class="progress-track" style="height:6px">
+          <div class="progress-fill" id="sn44-fill" style="background:#d4a017;width:0%"></div>
+        </div>
+      </div>
+      <div style="margin-top:16px;font-size:12px;color:#555;line-height:1.8">
+        <div><strong style="color:#1a7a3a">33% liquid</strong> immediately on exercise (~2,608 tokens/round)</div>
+        <div><strong style="color:#d4a017">67% locked</strong> for 91 days (~5,295 tokens/round)</div>
+        <div style="margin-top:10px;color:#999;font-size:11px">Accelerate pace only if SN44 price rises enough to sell the 33% liquid tranche and recycle capital back into the stablecoin floor.</div>
+      </div>
+      <div style="margin-top:16px">
+        <div class="section-label" style="margin-bottom:8px">Log an exercise round</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="number" id="sn44-tokens-input" placeholder="7903" value="7903" style="border:1px solid #ddd;padding:7px 10px;font-family:Arial;font-size:13px;width:110px">
+          <button class="log-btn" onclick="logSN44()">Log exercise</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="section-label" style="margin-bottom:12px">Projected rounds (from today)</div>
+      <div id="sn44-rounds"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Decision Rules -->
+<div class="section">
+  <div class="section-label">Decision Rules</div>
+  <div class="rule-item">
+    <span class="rule-icon" id="rule-stable-icon" style="color:#c0392b">✗</span>
+    <span><strong>No new blue chip buys</strong> until stablecoin floor of $150k is reached. Status: <span id="rule-stable-status" style="color:#c0392b;font-weight:700">not yet reached</span>.</span>
+  </div>
+  <div class="rule-item">
+    <span class="rule-icon" style="color:#555">→</span>
+    <span><strong>TIG deployment:</strong> $26k budget unlocks once the $150k floor is hit. Excess proceeds above floor only — do not deploy from floor capital.</span>
+  </div>
+  <div class="rule-item">
+    <span class="rule-icon" style="color:#555">→</span>
+    <span><strong>SN44 acceleration trigger:</strong> if spot price rises enough that the 33% liquid tranche covers meaningful capital, increase exercise frequency to pull forward the unlock schedule.</span>
+  </div>
+  <div class="rule-item">
+    <span class="rule-icon" style="color:#555">→</span>
+    <span><strong>Phase transition:</strong> JITOSOL is fully exited by end of Week 2 (312 tokens sold). Week 3+ is ETH-only at ~9 ETH/week.</span>
+  </div>
+</div>
+
+<!-- Sell Log -->
+<div class="section" style="border-bottom:none;padding-bottom:48px">
+  <div class="section-label">Sell Log</div>
+  <div id="sell-log-container"><div class="log-empty">No sells logged yet.</div></div>
+  <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+    <button class="ghost-btn" onclick="showSetup()">Update stables balance</button>
+    <button class="ghost-btn danger" onclick="resetPlan()">Reset all data</button>
+  </div>
+</div>
+
+<script>
+  // ── Constants ──────────────────────────────────────────────
+  const PLAN = {
+    phases: [
+      { weeks:[1,2], label:'Phase 1 — JITOSOL Heavy', jito:156, eth:4.5, target:28000 },
+      { weeks:[3,4], label:'Phase 2 — ETH Heavy',     jito:0,   eth:9,   target:20000 },
+    ],
+    stableFloor:   150000,
+    totalProceeds:  76700,
+    tigBudget:      26000,
+    sn44Total:      45732,
+    sn44PerRound:    7903,
+    sn44LiqPct:      0.33,
+    sn44LockDays:      91,
+  };
+
+  // ── State ──────────────────────────────────────────────────
+  function getState() {
+    try {
+      return JSON.parse(localStorage.getItem('pylon_exec_v1') || 'null') || defaultState();
+    } catch(e) { return defaultState(); }
+  }
+  function defaultState() {
+    return { planStart: null, currentStables: 105264, sells: [], sn44Exercised: 0 };
+  }
+  function saveState(s) { localStorage.setItem('pylon_exec_v1', JSON.stringify(s)); }
+
+  // ── Helpers ────────────────────────────────────────────────
+  function getCurrentWeek(state) {
+    if (!state.planStart) return null;
+    const days = (Date.now() - new Date(state.planStart)) / 86400000;
+    return Math.min(Math.floor(days / 7) + 1, 4);
+  }
+  function getPhase(week) {
+    return PLAN.phases[week <= 2 ? 0 : 1];
+  }
+  function getSellsForWeek(sells, planStart, week) {
+    if (!planStart || !week) return [];
+    const ms  = new Date(planStart).getTime();
+    const lo  = ms + (week-1)*7*86400000;
+    const hi  = ms +  week   *7*86400000;
+    return sells.filter(s => { const d=new Date(s.date).getTime(); return d>=lo && d<hi; });
+  }
+  function sumProceeds(sells) { return sells.reduce((t,s)=>t+(s.proceeds||0),0); }
+  function fmtK(v) { return v>=1000 ? '$'+Math.round(v/1000)+'k' : '$'+Math.round(v); }
+  function fmtUSD(v) { return '$'+Math.round(v).toLocaleString(); }
+
+  // ── Render ─────────────────────────────────────────────────
+  function render() {
+    const state = getState();
+    const week  = getCurrentWeek(state);
+    const phase = week ? getPhase(week) : null;
+
+    // Setup overlay
+    document.getElementById('setup-overlay').style.display = state.planStart ? 'none' : 'flex';
+
+    // Phase badge
+    const badge = document.getElementById('phase-badge');
+    if (!state.planStart) {
+      badge.textContent = 'Not started';
+      badge.style.background = '#bbb';
+    } else if (week && phase) {
+      badge.textContent = phase.label + ' · Week ' + week + '/4';
+      badge.style.background = week <= 2 ? '#1a7a3a' : '#6366f1';
+    } else {
+      badge.textContent = 'Plan complete';
+      badge.style.background = '#1a7a3a';
+    }
+
+    // Timeline current highlight
+    for (let w=1; w<=4; w++) {
+      document.getElementById('tw-'+w).classList.toggle('current', w===week);
+      document.getElementById('pill-'+w).style.display = w===week ? '' : 'none';
+    }
+
+    // Week section label
+    document.getElementById('week-section-label').textContent = week ? 'Week '+week+' Targets' : 'Weekly Targets';
+
+    // Week progress
+    renderWeek(state, week, phase);
+
+    // Stablecoin
+    renderStable(state);
+
+    // SN44
+    renderSN44(state);
+
+    // Log
+    renderLog(state);
+
+    // Rules
+    const totalSt = state.currentStables + sumProceeds(state.sells);
+    const floorHit = totalSt >= PLAN.stableFloor;
+    document.getElementById('rule-stable-icon').textContent = floorHit ? '✓' : '✗';
+    document.getElementById('rule-stable-icon').style.color = floorHit ? '#1a7a3a' : '#c0392b';
+    document.getElementById('rule-stable-status').textContent = floorHit ? 'reached' : 'not yet reached';
+    document.getElementById('rule-stable-status').style.color = floorHit ? '#1a7a3a' : '#c0392b';
+  }
+
+  function bar(pct, color) {
+    const w = Math.min(pct, 100).toFixed(1);
+    return `<div class="progress-track"><div class="progress-fill" style="background:${color};width:${w}%"></div></div>`;
+  }
+
+  function renderWeek(state, week, phase) {
+    const el = document.getElementById('week-progress');
+    if (!state.planStart || !week) {
+      el.innerHTML = '<div class="log-empty">Start the plan to see weekly targets.</div>';
+      return;
+    }
+    const sells    = getSellsForWeek(state.sells, state.planStart, week);
+    const ethSold  = sells.reduce((t,s)=>t+s.eth,0);
+    const jitoSold = sells.reduce((t,s)=>t+s.jito,0);
+    const proceeds = sumProceeds(sells);
+    const ethPct   = phase.eth  > 0 ? ethSold  / phase.eth  * 100 : 100;
+    const jitoPct  = phase.jito > 0 ? jitoSold / phase.jito * 100 : 100;
+    const procPct  = proceeds / phase.target * 100;
+
+    el.innerHTML = `
+      <div class="progress-group">
+        <div class="progress-header">
+          <span class="progress-name" style="color:#627eea">ETH</span>
+          <span class="progress-vals">${ethSold.toFixed(2)} / ${phase.eth} ETH</span>
+        </div>
+        ${bar(ethPct,'#627eea')}
+        ${ethSold>=phase.eth ? '<div class="progress-note good">Target hit.</div>' : ''}
+      </div>
+      ${phase.jito > 0 ? `
+      <div class="progress-group">
+        <div class="progress-header">
+          <span class="progress-name" style="color:#9945ff">JITOSOL</span>
+          <span class="progress-vals">${Math.round(jitoSold)} / ${phase.jito} tokens</span>
+        </div>
+        ${bar(jitoPct,'#9945ff')}
+        ${jitoSold>=phase.jito ? '<div class="progress-note good">Target hit.</div>' : ''}
+      </div>` : '<div class="progress-group"><div class="progress-note" style="color:#9945ff;font-weight:600">JITOSOL: fully exited. ETH only this week.</div></div>'}
+      <div class="progress-group">
+        <div class="progress-header">
+          <span class="progress-name">Week Proceeds</span>
+          <span class="progress-vals">${fmtUSD(proceeds)} / ${fmtUSD(phase.target)}</span>
+        </div>
+        ${bar(procPct,'#1a7a3a')}
+        ${proceeds>=phase.target ? '<div class="progress-note good">Week target reached.</div>' : `<div class="progress-note">${fmtUSD(phase.target-proceeds)} remaining this week.</div>`}
+      </div>`;
+  }
+
+  function renderStable(state) {
+    const proceeds  = sumProceeds(state.sells);
+    const projected = state.currentStables + proceeds;
+    const gap       = Math.max(PLAN.stableFloor - projected, 0);
+    const stPct     = projected / PLAN.stableFloor * 100;
+    const prPct     = proceeds  / PLAN.totalProceeds * 100;
+
+    document.getElementById('stat-current-stables').textContent = fmtK(state.currentStables);
+    document.getElementById('stat-proceeds').textContent        = fmtK(proceeds);
+    const gapEl = document.getElementById('stat-gap');
+    gapEl.textContent  = gap>0 ? '-'+fmtK(gap) : 'Met ✓';
+    gapEl.className    = 'stat-val ' + (gap>0 ? 'red' : 'green');
+    document.getElementById('stable-pct-label').textContent = fmtUSD(projected)+' / '+fmtUSD(PLAN.stableFloor)+' ('+Math.min(stPct,100).toFixed(0)+'%)';
+    document.getElementById('stable-fill').style.width = Math.min(stPct,100)+'%';
+    document.getElementById('stable-note').textContent = gap>0
+      ? fmtUSD(gap)+' more needed. Projected balance including logged proceeds: '+fmtUSD(projected)+'.'
+      : 'Floor reached. TIG budget of $26k is now unlocked.';
+    document.getElementById('stable-note').className = 'progress-note' + (gap===0?' good':'');
+    document.getElementById('proceeds-pct-label').textContent = fmtUSD(proceeds)+' / '+fmtUSD(PLAN.totalProceeds);
+    document.getElementById('proceeds-fill').style.width = Math.min(prPct,100)+'%';
+  }
+
+  function renderSN44(state) {
+    const exercised = state.sn44Exercised || 0;
+    const remaining = PLAN.sn44Total - exercised;
+    const pct       = exercised / PLAN.sn44Total * 100;
+
+    document.getElementById('stat-sn44-remaining').textContent = remaining.toLocaleString();
+    document.getElementById('sn44-pct-label').textContent = exercised.toLocaleString()+' / '+PLAN.sn44Total.toLocaleString();
+    document.getElementById('sn44-fill').style.width = pct+'%';
+
+    const rounds    = Math.ceil(remaining / PLAN.sn44PerRound);
+    const today     = new Date();
+    const monthFmt  = d => d.toLocaleDateString('en-US',{month:'short',year:'2-digit'});
+    let html = '';
+    for (let i=0; i<Math.min(rounds,6); i++) {
+      const exDate  = new Date(today.getTime() + i*30*86400000);
+      const unlDate = new Date(exDate.getTime() + PLAN.sn44LockDays*86400000);
+      const tok     = Math.min(PLAN.sn44PerRound, remaining - i*PLAN.sn44PerRound);
+      const liq     = Math.round(tok * PLAN.sn44LiqPct);
+      const lck     = tok - liq;
+      html += `<div class="sn44-round-row">
+        <span class="sn44-rnum">${i+1}</span>
+        <span class="sn44-rdate">${monthFmt(exDate)}</span>
+        <span class="sn44-rliq">+${liq.toLocaleString()} liquid</span>
+        <span class="sn44-rlock">${lck.toLocaleString()} locked</span>
+        <span class="sn44-runlock">unlocks ${monthFmt(unlDate)}</span>
+      </div>`;
+    }
+    document.getElementById('sn44-rounds').innerHTML = html;
+  }
+
+  function renderLog(state) {
+    const el = document.getElementById('sell-log-container');
+    if (!state.sells.length) { el.innerHTML='<div class="log-empty">No sells logged yet.</div>'; return; }
+    const rows = [...state.sells].reverse().map((s,ri) => {
+      const i = state.sells.length-1-ri;
+      const d = new Date(s.date).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      return `<tr>
+        <td>${d}</td>
+        <td>${s.eth>0 ? s.eth.toFixed(3)+' ETH' : '—'}</td>
+        <td>${s.jito>0 ? Math.round(s.jito)+' JITO' : '—'}</td>
+        <td>${fmtUSD(s.proceeds)}</td>
+        <td><button class="del-btn" onclick="deleteSell(${i})" title="Remove">✕</button></td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `<table class="log-table">
+      <thead><tr><th>Date</th><th>ETH</th><th>JITOSOL</th><th>Proceeds</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  // ── Actions ────────────────────────────────────────────────
+  function startPlan() {
+    const state    = getState();
+    const dateVal  = document.getElementById('setup-date').value;
+    const stablesV = parseFloat(document.getElementById('setup-stables').value);
+    if (dateVal) state.planStart = dateVal;
+    if (!isNaN(stablesV)) state.currentStables = stablesV;
+    saveState(state);
+    render();
+  }
+
+  function showSetup() {
+    const state = getState();
+    document.getElementById('setup-stables').value = state.currentStables;
+    document.getElementById('setup-date').value = state.planStart || new Date().toISOString().slice(0,10);
+    document.getElementById('setup-overlay').style.display = 'flex';
+  }
+
+  function logSell() {
+    const eth    = parseFloat(document.getElementById('log-eth').value)       || 0;
+    const jito   = parseFloat(document.getElementById('log-jito').value)      || 0;
+    const ethPx  = parseFloat(document.getElementById('log-eth-price').value) || 2260;
+    const jitoPx = parseFloat(document.getElementById('log-jito-price').value)|| 122;
+    if (eth===0 && jito===0) return;
+    const proceeds = eth*ethPx + jito*jitoPx;
+    const state  = getState();
+    state.sells.push({ date: new Date().toISOString(), eth, jito, ethPrice:ethPx, jitoPrice:jitoPx, proceeds });
+    saveState(state);
+    document.getElementById('log-eth').value  = '';
+    document.getElementById('log-jito').value = '';
+    document.getElementById('log-preview').textContent = 'Enter quantities to preview proceeds.';
+    render();
+  }
+
+  function logSN44() {
+    const tokens = parseInt(document.getElementById('sn44-tokens-input').value) || PLAN.sn44PerRound;
+    const state  = getState();
+    state.sn44Exercised = (state.sn44Exercised||0) + tokens;
+    saveState(state);
+    render();
+  }
+
+  function deleteSell(i) {
+    const state = getState();
+    state.sells.splice(i,1);
+    saveState(state);
+    render();
+  }
+
+  function resetPlan() {
+    if (!confirm('Reset all logged data? This cannot be undone.')) return;
+    localStorage.removeItem('pylon_exec_v1');
+    render();
+  }
+
+  function updatePreview() {
+    const eth    = parseFloat(document.getElementById('log-eth').value)       || 0;
+    const jito   = parseFloat(document.getElementById('log-jito').value)      || 0;
+    const ethPx  = parseFloat(document.getElementById('log-eth-price').value) || 2260;
+    const jitoPx = parseFloat(document.getElementById('log-jito-price').value)|| 122;
+    const proceeds = eth*ethPx + jito*jitoPx;
+    const el = document.getElementById('log-preview');
+    if (eth===0 && jito===0) { el.textContent='Enter quantities to preview proceeds.'; return; }
+    const parts = [];
+    if (eth>0)  parts.push(eth+' ETH × $'+ethPx.toLocaleString());
+    if (jito>0) parts.push(Math.round(jito)+' JITO × $'+jitoPx);
+    el.textContent = 'Proceeds: '+fmtUSD(proceeds)+' ('+parts.join(' + ')+')';
+  }
+
+  // Init
+  document.getElementById('setup-date').value = new Date().toISOString().slice(0,10);
+  render();
+</script>
+</body>
+</html>
