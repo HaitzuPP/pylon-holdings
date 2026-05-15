@@ -134,6 +134,53 @@
     .null-val { color: #ccc; }
     .pct-val  { color: #555; }
 
+    /* ── SPLIT CELL ── */
+    .split-cell { min-width: 130px; }
+    .split-mini-wrap {
+      display: flex; height: 3px; border-radius: 2px; overflow: hidden;
+      margin-bottom: 5px; background: #f0f0f0;
+    }
+    .split-mini-p  { background: #1a7a3a; }
+    .split-mini-py { background: #555; }
+    .split-amounts { display: flex; gap: 8px; font-size: 11px; color: #888; font-variant-numeric: tabular-nums; }
+    .split-p-lbl   { color: #1a7a3a; font-weight: 700; font-size: 10px; }
+    .split-py-lbl  { color: #555; font-weight: 700; font-size: 10px; }
+
+    /* ── SECTOR LEGEND (Holdings footer) ── */
+    .sector-legend-strip {
+      display: flex; gap: 16px; flex-wrap: wrap;
+      margin-top: 20px; padding-top: 14px;
+      border-top: 1px solid #f0f0f0;
+    }
+    .s-leg-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #777; }
+    .s-leg-stripe { width: 3px; height: 14px; border-radius: 1px; flex-shrink: 0; }
+
+    /* ── HEADER DELTA ── */
+    .aum-delta-pos { color: #1a7a3a; }
+    .aum-delta-neg { color: #c0392b; }
+
+    /* ── HISTORY STATS BAR ── */
+    .history-stats {
+      display: flex; gap: 32px; flex-wrap: wrap;
+      margin-bottom: 18px; padding-bottom: 16px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .hist-stat-val { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; line-height: 1; color: #111; }
+    .hist-stat-val.pos { color: #1a7a3a; }
+    .hist-stat-val.neg { color: #c0392b; }
+    .hist-stat-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #999; margin-top: 4px; }
+
+    /* ── OVERLAY TOGGLES ── */
+    .overlay-toggles { display: flex; gap: 8px; margin-bottom: 16px; }
+    .ov-toggle {
+      font-family: Arial; font-size: 11px; font-weight: 600;
+      padding: 5px 14px; border: 1px solid #ddd; background: #fff;
+      color: #666; cursor: pointer; transition: all 0.15s;
+    }
+    .ov-toggle:hover { border-color: #999; color: #333; }
+    .ov-toggle.active-btc  { border-color: #f7931a; color: #f7931a; background: #fff8f0; }
+    .ov-toggle.active-hype { border-color: #6366f1; color: #6366f1; background: #f5f5ff; }
+
     /* ── RIGHT PANEL ── */
     .right-panel { padding: 20px 24px 32px; display: flex; flex-direction: column; gap: 28px; }
     .chart-block {}
@@ -307,6 +354,11 @@
         <div class="aum-value small" id="stables-idle">—</div>
         <div class="aum-label">Idle (Stables)</div>
       </div>
+      <div class="aum-div"></div>
+      <div class="aum-block">
+        <div class="aum-value small" id="aum-delta">—</div>
+        <div class="aum-label" id="aum-delta-label">vs prior</div>
+      </div>
     </div>
   </div>
   <div class="header-right">
@@ -409,9 +461,11 @@
 <!-- ── HISTORY TAB ── -->
 <div id="tab-history" class="tab-panel">
   <div class="history-section">
-    <div class="section-header">
-      <div class="section-label">Portfolio Value Over Time</div>
-      <button class="toggle-btn" id="btc-btn" onclick="toggleBTC()">BTC + HYPE overlay</button>
+    <div class="section-label">Portfolio Value Over Time</div>
+    <div class="history-stats" id="history-stats-bar"></div>
+    <div class="overlay-toggles">
+      <button class="ov-toggle" id="btc-btn" onclick="toggleOverlay('btc')">BTC overlay</button>
+      <button class="ov-toggle" id="hype-btn" onclick="toggleOverlay('hype')">HYPE overlay</button>
     </div>
     <div id="history-container"><div class="loading">Loading...</div></div>
   </div>
@@ -476,6 +530,7 @@
   let countdownSec = 300;
   let countdownInterval;
   let showBTC   = false;
+  let showHYPE  = false;
   let hideDust  = false;
   let lastMergedHistory = [];
   const DUST_THRESHOLD = 1000;
@@ -496,12 +551,18 @@
     }
   }
 
-  function toggleBTC() {
-    showBTC = !showBTC;
-    const btn = document.getElementById('btc-btn');
-    btn.classList.toggle('active', showBTC);
+  function toggleOverlay(which) {
+    if (which === 'btc') {
+      showBTC = !showBTC;
+      document.getElementById('btc-btn').classList.toggle('active-btc', showBTC);
+    } else {
+      showHYPE = !showHYPE;
+      document.getElementById('hype-btn').classList.toggle('active-hype', showHYPE);
+    }
     renderHistory(lastMergedHistory);
   }
+  // keep legacy ref in case anything calls it
+  function toggleBTC() { toggleOverlay('btc'); }
 
   function toggleDust() {
     hideDust = !hideDust;
@@ -609,6 +670,19 @@
       document.getElementById('total-aum').textContent    = totRow[4] != null ? '$' + Math.round(totRow[4]).toLocaleString() : '—';
       document.getElementById('personal-aum').textContent = totRow[2] != null ? '$' + Math.round(totRow[2]).toLocaleString() : '—';
       document.getElementById('pylon-aum').textContent    = totRow[3] != null ? '$' + Math.round(totRow[3]).toLocaleString() : '—';
+
+      // AUM delta vs most recent hardcoded snapshot
+      const lastSnap   = HARDCODED_HISTORY[HARDCODED_HISTORY.length - 1];
+      const currentAUM = totRow[4];
+      if (currentAUM != null && lastSnap) {
+        const delta    = ((currentAUM - lastSnap[1]) / lastSnap[1] * 100);
+        const sign     = delta >= 0 ? '+' : '';
+        const cls      = delta >= 0 ? 'aum-delta-pos' : 'aum-delta-neg';
+        const deltaEl  = document.getElementById('aum-delta');
+        const labelEl  = document.getElementById('aum-delta-label');
+        if (deltaEl) deltaEl.innerHTML = `<span class="${cls}">${sign}${delta.toFixed(1)}%</span>`;
+        if (labelEl) labelEl.textContent = `vs ${lastSnap[0]}`;
+      }
     }
 
     // History rows
@@ -676,13 +750,12 @@
       return sortAsc ? av - bv : bv - av;
     });
 
-    // Price (idx 1) removed — not useful for allocation review
+    // Price removed; Personal+Pylon collapsed into single Split column
     const cols = [
-      { label: 'Token',    idx: 0 },
-      { label: 'Personal', idx: 2 },
-      { label: 'Pylon',    idx: 3 },
-      { label: 'Total',    idx: 4 },
-      { label: 'Alloc',    idx: 5 },
+      { label: 'Token', idx: 0 },
+      { label: 'Split (Pers / Pylon)', idx: 4, noSort: true },
+      { label: 'Total', idx: 4 },
+      { label: 'Alloc', idx: 5 },
     ];
 
     const arrow = i => sortCol !== i
@@ -690,7 +763,9 @@
       : `<span class="sort-arrow">${sortAsc ? '↑' : '↓'}</span>`;
 
     const thead = `<thead><tr>${cols.map(c =>
-      `<th class="${sortCol === c.idx ? 'sorted' : ''}" onclick="sortTable(${c.idx})">${c.label}${arrow(c.idx)}</th>`
+      c.noSort
+        ? `<th style="cursor:default">${c.label}</th>`
+        : `<th class="${sortCol === c.idx && !c.noSort ? 'sorted' : ''}" onclick="sortTable(${c.idx})">${c.label}${arrow(c.idx)}</th>`
     ).join('')}</tr></thead>`;
 
     const tbody = `<tbody>${sorted.map((r, rowIdx) => {
@@ -700,11 +775,19 @@
       const fillW       = Math.round((r[4] / maxVal) * 100);
       const pct         = r[5] != null ? (r[5] * 100).toFixed(1) + '%' : '—';
 
-      const personalCell = r[2] > 0
-        ? `<span class="split-val">${fmtUSD(r[2])}</span>`
-        : `<span class="null-val">—</span>`;
-      const pylonCell = r[3] > 0
-        ? `<span class="split-val">${fmtUSD(r[3])}</span>`
+      // Split cell: mini bar + amounts
+      const splitTotal = (r[2] || 0) + (r[3] || 0);
+      const pPct  = splitTotal > 0 ? ((r[2] || 0) / splitTotal * 100).toFixed(0) : 0;
+      const pyPct = 100 - pPct;
+      const splitCell = splitTotal > 0
+        ? `<div class="split-mini-wrap">
+             <div class="split-mini-p"  style="width:${pPct}%"></div>
+             <div class="split-mini-py" style="width:${pyPct}%"></div>
+           </div>
+           <div class="split-amounts">
+             <span><span class="split-p-lbl">P</span> ${fmtK(r[2] || 0)}</span>
+             <span><span class="split-py-lbl">PY</span> ${fmtK(r[3] || 0)}</span>
+           </div>`
         : `<span class="null-val">—</span>`;
 
       return `<tr style="border-left-color:${sectorColor}">
@@ -712,8 +795,7 @@
           <span class="tok-name">${r[0]}</span>
           <span class="tok-cat">${sector}</span>
         </td>
-        <td>${personalCell}</td>
-        <td>${pylonCell}</td>
+        <td class="split-cell">${splitCell}</td>
         <td><span class="total-val">${fmtUSD(r[4])}</span></td>
         <td class="alloc-cell">
           <div class="alloc-fill" style="width:${fillW}%;background:${tokenColor}"></div>
@@ -722,7 +804,18 @@
       </tr>`;
     }).join('')}</tbody>`;
 
-    document.getElementById('table-container').innerHTML = `<table>${thead}${tbody}</table>`;
+    // Sector legend
+    const usedSectors = [...new Set(sorted.map(r => getSector(r[0])))];
+    const legend = usedSectors.map(s =>
+      `<div class="s-leg-item">
+         <div class="s-leg-stripe" style="background:${SECTOR_COLORS[s] || '#ccc'}"></div>
+         ${s}
+       </div>`
+    ).join('');
+
+    document.getElementById('table-container').innerHTML =
+      `<table>${thead}${tbody}</table>
+       <div class="sector-legend-strip">${legend}</div>`;
   }
 
   function sortTable(col) {
@@ -1021,6 +1114,43 @@
     const btcRaw   = rows.map(r => r[3]);
     const hypeRaw  = rows.map(r => r[4]);
 
+    // ── Stats bar ──────────────────────────────────────────────
+    const statEl = document.getElementById('history-stats-bar');
+    if (statEl && values.length > 1) {
+      const inception  = values[0];
+      const current    = values[values.length - 1];
+      const athVal     = Math.max(...values);
+      const athLabel   = rows[values.indexOf(athVal)][0];
+      const totalRet   = ((current - inception) / inception * 100);
+      const drawdown   = ((current - athVal) / athVal * 100);
+      const prevVal    = values[values.length - 2];
+      const momRet     = ((current - prevVal) / prevVal * 100);
+
+      const fmt = (v, decimals = 1) => {
+        const sign = v >= 0 ? '+' : '';
+        return `${sign}${v.toFixed(decimals)}%`;
+      };
+      const cls = v => v >= 0 ? 'pos' : 'neg';
+
+      statEl.innerHTML = `
+        <div>
+          <div class="hist-stat-val ${cls(totalRet)}">${fmt(totalRet)}</div>
+          <div class="hist-stat-lbl">Since inception (${rows[0][0]})</div>
+        </div>
+        <div>
+          <div class="hist-stat-val ${cls(momRet)}">${fmt(momRet)}</div>
+          <div class="hist-stat-lbl">vs ${rows[rows.length - 2][0]}</div>
+        </div>
+        <div>
+          <div class="hist-stat-val ${cls(drawdown)}">${fmt(drawdown)}</div>
+          <div class="hist-stat-lbl">Drawdown from ATH (${athLabel})</div>
+        </div>
+        <div>
+          <div class="hist-stat-val">$${Math.round(athVal).toLocaleString()}</div>
+          <div class="hist-stat-lbl">All-time high</div>
+        </div>`;
+    }
+
     // Index overlay lines to 100 at their first non-null value
     function indexTo100(vals) {
       const base = vals.find(v => v != null);
@@ -1067,6 +1197,7 @@
       }
     ];
 
+    const anyOverlay = showBTC || showHYPE;
     if (showBTC) {
       datasets.push({
         label: 'BTC (indexed)',
@@ -1081,6 +1212,8 @@
         tension: 0.35,
         spanGaps: true,
       });
+    }
+    if (showHYPE) {
       datasets.push({
         label: 'HYPE (indexed)',
         data: hypeIdx,
@@ -1124,7 +1257,7 @@
       }
     };
 
-    if (showBTC) {
+    if (anyOverlay) {
       scales.yOverlay = {
         min: overlayMin,
         max: overlayMax,
@@ -1157,7 +1290,7 @@
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: {
-            display: showBTC,
+            display: anyOverlay,
             position: 'top',
             align: 'end',
             labels: { font: { family: 'Arial', size: 10 }, boxWidth: 10, padding: 12, color: '#555' }
@@ -1170,7 +1303,7 @@
             bodyColor: '#555',
             padding: 12,
             cornerRadius: 2,
-            displayColors: showBTC,
+            displayColors: anyOverlay,
             callbacks: {
               title: ctx => ctx[0].label,
               label: ctx => {
@@ -1308,14 +1441,14 @@
     const divider = `<tr class="opt-divider"><td colspan="${parsed.length + 1}"></td></tr>`;
 
     const tbody = [
-      row('Strike Price',       parsed.map(o => cell(o.strikeFmt)).join('')),
-      row('Current Price',      parsed.map(o => cell(o.price)).join('')),
+      row('Unrealized P&L',     parsed.map(o => cell(o.pnl, o.pnlClass)).join('')),
+      row('Current Value',      parsed.map(o => cell(o.curVal)).join('')),
+      row('Remaining Notional', parsed.map(o => cell(o.rem)).join('')),
+      divider,
       row('Status',             parsed.map(o => cell(o.status, o.sc)).join('')),
       row('vs Strike',          parsed.map(o => cell(o.pct, o.sc)).join('')),
-      divider,
-      row('Remaining Notional', parsed.map(o => cell(o.rem)).join('')),
-      row('Current Value',      parsed.map(o => cell(o.curVal)).join('')),
-      row('Unrealized P&L',     parsed.map(o => cell(o.pnl, o.pnlClass)).join('')),
+      row('Strike Price',       parsed.map(o => cell(o.strikeFmt)).join('')),
+      row('Current Price',      parsed.map(o => cell(o.price)).join('')),
       divider,
       row('Tokens if Exercised',parsed.map(o => cell(o.tokens)).join('')),
       row('Expiry',             parsed.map(o => cell(o.expiry)).join('')),
