@@ -306,26 +306,109 @@
     .overview-col + .overview-col { border-left: 1px solid #e5e5e5; }
     .overview-col .chart-block + .chart-block { margin-top: 28px; }
 
+    /* ── SECTOR PILLS ── */
+    .sector-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+    .sector-pill {
+      font-family: Arial; font-size: 11px; font-weight: 600;
+      padding: 4px 12px; border: 1px solid #e0e0e0; background: #fff;
+      color: #777; cursor: pointer; border-radius: 100px;
+      transition: all 0.15s;
+    }
+    .sector-pill:hover { border-color: #999; color: #333; }
+    .sector-pill.active { background: #111; color: #fff; border-color: #111; }
+
+    /* ── ACTIVE FILTER BAR ── */
+    .filter-bar {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 11px; color: #555; margin-bottom: 12px;
+      padding: 7px 12px; background: #f7f7f7; border-left: 3px solid #111;
+    }
+    .filter-clear { cursor: pointer; color: #c0392b; font-weight: 700; margin-left: auto; }
+
+    /* ── EXPAND ROW ── */
+    .expand-row td { padding: 0 !important; border-bottom: 1px solid #ebebeb !important; }
+    .expand-content {
+      padding: 14px 14px 14px 17px;
+      display: flex; gap: 28px; flex-wrap: wrap;
+      background: #f9f9f9;
+      animation: expandIn 0.15s ease;
+    }
+    @keyframes expandIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    .expand-block { }
+    .expand-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: #bbb; margin-bottom: 3px; }
+    .expand-val { font-size: 13px; font-weight: 600; color: #111; font-variant-numeric: tabular-nums; }
+    .row-expandable { cursor: pointer; }
+    .row-expandable:hover td { background: #f5f5f5 !important; }
+    .row-expandable td:first-child::after {
+      content: '›'; font-size: 14px; color: #ccc; margin-left: 8px;
+      transition: transform 0.15s; display: inline-block;
+    }
+    .row-expandable.expanded td:first-child::after { transform: rotate(90deg); color: #555; }
+
+    /* ── OPTIONS CARDS (mobile) ── */
+    .opts-cards { display: none; }
+    .opt-card {
+      border: 1px solid #e5e5e5; padding: 16px 18px; margin-bottom: 10px;
+    }
+    .opt-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+    .opt-card-name { font-size: 15px; font-weight: 700; }
+    .opt-card-badge {
+      font-size: 10px; font-weight: 700; padding: 3px 9px;
+      border-radius: 2px; letter-spacing: 0.5px; text-transform: uppercase;
+    }
+    .opt-card-badge.itm { background: #e8f5ed; color: #1a7a3a; }
+    .opt-card-badge.otm { background: #fdf0f0; color: #c0392b; }
+    .opt-card-pnl { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 14px; font-variant-numeric: tabular-nums; }
+    .opt-card-pnl.pos { color: #1a7a3a; }
+    .opt-card-pnl.neg { color: #c0392b; }
+    .opt-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; }
+    .opt-card-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #aaa; margin-bottom: 2px; }
+    .opt-card-val { font-size: 13px; font-variant-numeric: tabular-nums; color: #111; }
+    .opt-card-val.itm { color: #1a7a3a; font-weight: 700; }
+    .opt-card-val.otm { color: #c0392b; font-weight: 600; }
+
     /* ── LOADING / ERROR ── */
     .loading { color: #999; font-size: 12px; padding: 20px 0; }
     .error   { color: #c0392b; font-size: 12px; padding: 12px 0; }
 
     /* ── MOBILE ── */
     @media (max-width: 760px) {
-      header { padding: 18px 18px 14px; }
-      .cat-bar-section { padding: 12px 18px; }
+      header { padding: 16px 18px 14px; }
+      .aum-strip { gap: 16px; }
+      .aum-value { font-size: 22px; }
+      /* Collapse Personal/Pylon/Idle on mobile — show Total + delta only */
+      .aum-mobile-hide { display: none !important; }
+
+      .cat-bar-section { padding: 10px 18px; }
       .tab-nav { padding: 0 18px; }
       .tab-btn { padding: 10px 12px; font-size: 11px; }
       .itm-banner-wrap:not(:empty) { padding: 10px 18px; }
+
+      /* Overview */
       .overview-charts { flex-direction: column; }
       .overview-col { padding: 18px 18px 24px; }
       .overview-col + .overview-col { border-left: none; border-top: 1px solid #e5e5e5; }
-      .table-section { padding: 18px 18px 24px; border-right: none; }
-      .sector-section { padding: 18px 18px 24px; }
-      .history-section { padding: 18px 18px 24px; }
+
+      /* Holdings */
+      .table-section { padding: 16px 18px 28px; border-right: none; }
+      /* Hide Split column on mobile — too small to be useful */
+      .col-split { display: none; }
+
+      /* History */
+      .history-section { padding: 18px 18px 28px; }
+      .history-stats { gap: 20px; }
+      .history-stats > div { flex: 0 0 calc(50% - 10px); }
+      .hist-stat-val { font-size: 16px; }
+      .overlay-toggles { flex-wrap: wrap; }
+
+      /* Options: hide table, show cards */
       .call-options-section { padding: 18px 18px 28px; }
-      .options-table { font-size: 11px; }
-      .aum-value { font-size: 22px; }
+      .opts-table-wrap { display: none; }
+      .opts-cards { display: block; }
+
+      /* Sector pills */
+      .sector-pills { gap: 5px; }
+      .sector-pill { font-size: 10px; padding: 4px 10px; }
     }
   </style>
 </head>
@@ -340,17 +423,17 @@
         <div class="aum-value" id="total-aum">—</div>
         <div class="aum-label">Total AUM</div>
       </div>
-      <div class="aum-div"></div>
-      <div class="aum-block">
+      <div class="aum-div aum-mobile-hide"></div>
+      <div class="aum-block aum-mobile-hide">
         <div class="aum-value small" id="personal-aum">—</div>
         <div class="aum-label">Personal</div>
       </div>
-      <div class="aum-block">
+      <div class="aum-block aum-mobile-hide">
         <div class="aum-value small" id="pylon-aum">—</div>
         <div class="aum-label">Pylon</div>
       </div>
-      <div class="aum-div"></div>
-      <div class="aum-block">
+      <div class="aum-div aum-mobile-hide"></div>
+      <div class="aum-block aum-mobile-hide">
         <div class="aum-value small" id="stables-idle">—</div>
         <div class="aum-label">Idle (Stables)</div>
       </div>
@@ -414,8 +497,8 @@
   <div class="overview-charts">
     <div class="overview-col">
       <div class="chart-block">
-        <div class="section-label">Allocation</div>
-        <div style="position:relative; height:220px; width:100%;">
+        <div class="section-label">Allocation <span style="font-size:10px;color:#bbb;font-weight:400;text-transform:none;letter-spacing:0">— click a slice to filter Holdings</span></div>
+        <div style="position:relative; height:220px; width:100%; cursor:pointer;">
           <canvas id="donut-chart"></canvas>
         </div>
       </div>
@@ -454,7 +537,8 @@
 <div id="tab-options" class="tab-panel">
   <div class="call-options-section">
     <div class="section-label">Call Options</div>
-    <div id="call-options-container"><div class="loading">Loading...</div></div>
+    <div class="opts-table-wrap" id="call-options-container"><div class="loading">Loading...</div></div>
+    <div class="opts-cards" id="call-options-cards"></div>
   </div>
 </div>
 
@@ -529,11 +613,34 @@
   let sortCol = 4, sortAsc = false;
   let countdownSec = 300;
   let countdownInterval;
-  let showBTC   = false;
-  let showHYPE  = false;
-  let hideDust  = false;
+  let showBTC      = false;
+  let showHYPE     = false;
+  let hideDust     = false;
+  let activeFilter = null;   // { type: 'sector'|'token'|'category', value: string } | null
+  let expandedToken = null;  // token name string | null
   let lastMergedHistory = [];
   const DUST_THRESHOLD = 1000;
+
+  function setSectorFilter(sector) {
+    if (sector === 'All' || (activeFilter && activeFilter.type === 'sector' && activeFilter.value === sector)) {
+      activeFilter = null;
+    } else {
+      activeFilter = { type: 'sector', value: sector };
+    }
+    expandedToken = null;
+    renderTable();
+  }
+
+  function clearFilter() {
+    activeFilter = null;
+    expandedToken = null;
+    renderTable();
+  }
+
+  function toggleRowExpand(token) {
+    expandedToken = expandedToken === token ? null : token;
+    renderTable();
+  }
 
   function switchTab(tab) {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -739,7 +846,20 @@
 
   // ── Holdings table ───────────────────────────────────────────
   function renderTable() {
-    const visible = hideDust ? holdings.filter(r => (r[4] || 0) >= DUST_THRESHOLD) : holdings;
+    let visible = hideDust ? holdings.filter(r => (r[4] || 0) >= DUST_THRESHOLD) : holdings;
+
+    // Apply active filter
+    if (activeFilter) {
+      if (activeFilter.type === 'token') {
+        const v = activeFilter.value.toUpperCase();
+        visible = visible.filter(r => r[0].toUpperCase() === v || r[0].toUpperCase().startsWith(v + ' ') || r[0].toUpperCase().startsWith(v + '_'));
+      } else if (activeFilter.type === 'sector') {
+        visible = visible.filter(r => getSector(r[0]) === activeFilter.value);
+      } else if (activeFilter.type === 'category') {
+        visible = visible.filter(r => getCategory(r[0]) === activeFilter.value);
+      }
+    }
+
     const maxVal = Math.max(...visible.map(r => r[4] || 0));
     const sorted = [...visible].sort((a, b) => {
       const av = a[sortCol], bv = b[sortCol];
@@ -753,7 +873,7 @@
     // Price removed; Personal+Pylon collapsed into single Split column
     const cols = [
       { label: 'Token', idx: 0 },
-      { label: 'Split (Pers / Pylon)', idx: 4, noSort: true },
+      { label: 'Split (Pers / Pylon)', idx: 4, noSort: true, cls: 'col-split' },
       { label: 'Total', idx: 4 },
       { label: 'Alloc', idx: 5 },
     ];
@@ -764,8 +884,8 @@
 
     const thead = `<thead><tr>${cols.map(c =>
       c.noSort
-        ? `<th style="cursor:default">${c.label}</th>`
-        : `<th class="${sortCol === c.idx && !c.noSort ? 'sorted' : ''}" onclick="sortTable(${c.idx})">${c.label}${arrow(c.idx)}</th>`
+        ? `<th class="${c.cls || ''}" style="cursor:default">${c.label}</th>`
+        : `<th class="${(sortCol === c.idx ? 'sorted ' : '') + (c.cls || '')}" onclick="sortTable(${c.idx})">${c.label}${arrow(c.idx)}</th>`
     ).join('')}</tr></thead>`;
 
     const tbody = `<tbody>${sorted.map((r, rowIdx) => {
@@ -774,6 +894,8 @@
       const tokenColor  = getTokenColor(r[0], rowIdx);
       const fillW       = Math.round((r[4] / maxVal) * 100);
       const pct         = r[5] != null ? (r[5] * 100).toFixed(1) + '%' : '—';
+      const isExpanded  = expandedToken === r[0];
+      const safeToken   = r[0].replace(/'/g, "\\'");
 
       // Split cell: mini bar + amounts
       const splitTotal = (r[2] || 0) + (r[3] || 0);
@@ -790,19 +912,55 @@
            </div>`
         : `<span class="null-val">—</span>`;
 
-      return `<tr style="border-left-color:${sectorColor}">
+      // Expanded detail row
+      const expandRow = isExpanded ? `<tr class="expand-row">
+        <td colspan="4">
+          <div class="expand-content">
+            <div class="expand-block">
+              <div class="expand-lbl">Price</div>
+              <div class="expand-val">${fmtPrice(r[1])}</div>
+            </div>
+            <div class="expand-block">
+              <div class="expand-lbl">Personal</div>
+              <div class="expand-val">${r[2] > 0 ? fmtUSD(r[2]) : '—'}</div>
+            </div>
+            <div class="expand-block">
+              <div class="expand-lbl">Pylon</div>
+              <div class="expand-val">${r[3] > 0 ? fmtUSD(r[3]) : '—'}</div>
+            </div>
+            <div class="expand-block">
+              <div class="expand-lbl">Sector</div>
+              <div class="expand-val" style="color:${sectorColor}">${sector}</div>
+            </div>
+          </div>
+        </td>
+      </tr>` : '';
+
+      return `<tr class="row-expandable${isExpanded ? ' expanded' : ''}" style="border-left-color:${sectorColor}" onclick="toggleRowExpand('${safeToken}')">
         <td class="tok-cell">
           <span class="tok-name">${r[0]}</span>
           <span class="tok-cat">${sector}</span>
         </td>
-        <td class="split-cell">${splitCell}</td>
+        <td class="split-cell col-split">${splitCell}</td>
         <td><span class="total-val">${fmtUSD(r[4])}</span></td>
         <td class="alloc-cell">
           <div class="alloc-fill" style="width:${fillW}%;background:${tokenColor}"></div>
           <span class="alloc-pct">${pct}</span>
         </td>
-      </tr>`;
+      </tr>${expandRow}`;
     }).join('')}</tbody>`;
+
+    // Sector pills
+    const allSectors = [...new Set(holdings.map(r => getSector(r[0])))].sort();
+    const pills = ['All', ...allSectors].map(s => {
+      const isActive = s === 'All' ? !activeFilter : (activeFilter?.type === 'sector' && activeFilter.value === s);
+      return `<button class="sector-pill${isActive ? ' active' : ''}" onclick="setSectorFilter('${s}')">${s}</button>`;
+    }).join('');
+
+    // Active filter indicator (when filter came from donut click)
+    const filterBar = activeFilter && activeFilter.type !== 'sector'
+      ? `<div class="filter-bar">Filtered to: <strong>${activeFilter.value}</strong> <span class="filter-clear" onclick="clearFilter()">✕ clear</span></div>`
+      : '';
 
     // Sector legend
     const usedSectors = [...new Set(sorted.map(r => getSector(r[0])))];
@@ -814,7 +972,9 @@
     ).join('');
 
     document.getElementById('table-container').innerHTML =
-      `<table>${thead}${tbody}</table>
+      `<div class="sector-pills">${pills}</div>
+       ${filterBar}
+       <table>${thead}${tbody}</table>
        <div class="sector-legend-strip">${legend}</div>`;
   }
 
@@ -885,6 +1045,23 @@
         responsive: true,
         maintainAspectRatio: false,
         cutout: '52%',
+        onClick: (evt, elements) => {
+          if (!elements.length) { activeFilter = null; renderTable(); return; }
+          const lbl = labels[elements[0].index];
+          let newFilter;
+          if (lbl === 'Stables')  newFilter = { type: 'category', value: 'stables' };
+          else if (lbl === 'Illiquid') newFilter = { type: 'category', value: 'illiquid' };
+          else newFilter = { type: 'token', value: lbl };
+          // Toggle off if already active
+          if (activeFilter && activeFilter.type === newFilter.type && activeFilter.value === newFilter.value) {
+            activeFilter = null;
+          } else {
+            activeFilter = newFilter;
+          }
+          expandedToken = null;
+          switchTab('holdings');
+          renderTable();
+        },
         plugins: {
           legend: {
             position: 'right',
@@ -1460,6 +1637,25 @@
         <thead><tr><th></th>${colHeaders}</tr></thead>
         <tbody>${tbody}</tbody>
       </table>`;
+
+    // Mobile cards view
+    const cardsHTML = parsed.map(o => `
+      <div class="opt-card">
+        <div class="opt-card-header">
+          <div class="opt-card-name">${o.name}</div>
+          <span class="opt-card-badge ${o.isITM ? 'itm' : 'otm'}">${o.status}</span>
+        </div>
+        <div class="opt-card-pnl ${o.pnlNum != null && o.pnlNum >= 0 ? 'pos' : 'neg'}">${o.pnl !== '—' ? o.pnl : 'N/A'}</div>
+        <div class="opt-card-grid">
+          <div><div class="opt-card-lbl">Current Value</div><div class="opt-card-val">${o.curVal}</div></div>
+          <div><div class="opt-card-lbl">vs Strike</div><div class="opt-card-val ${o.sc}">${o.pct}</div></div>
+          <div><div class="opt-card-lbl">Strike Price</div><div class="opt-card-val">${o.strikeFmt}</div></div>
+          <div><div class="opt-card-lbl">Current Price</div><div class="opt-card-val">${o.price}</div></div>
+          <div><div class="opt-card-lbl">Remaining</div><div class="opt-card-val">${o.rem}</div></div>
+          <div><div class="opt-card-lbl">Expiry</div><div class="opt-card-val">${o.expiry}</div></div>
+        </div>
+      </div>`).join('');
+    document.getElementById('call-options-cards').innerHTML = cardsHTML;
 
     updateITMBanner(parsed);
   }
