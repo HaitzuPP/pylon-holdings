@@ -345,17 +345,23 @@
     <div class="overview-col">
       <div class="chart-block">
         <div class="section-label">Allocation</div>
-        <canvas id="donut-chart" width="312" height="220"></canvas>
+        <div style="position:relative; height:220px; width:100%;">
+          <canvas id="donut-chart"></canvas>
+        </div>
       </div>
       <div class="chart-block">
         <div class="section-label">Personal vs Pylon</div>
-        <canvas id="split-chart" width="312" height="260"></canvas>
+        <div style="position:relative; height:260px; width:100%;">
+          <canvas id="split-chart"></canvas>
+        </div>
       </div>
     </div>
     <div class="overview-col" style="flex:1.4">
       <div class="section-label">Sector Analysis</div>
       <div class="sector-layout">
-        <canvas id="sector-chart" width="240" height="200"></canvas>
+        <div style="position:relative; height:200px; width:200px; flex-shrink:0;">
+          <canvas id="sector-chart"></canvas>
+        </div>
         <div class="sector-breakdown-table" id="sector-breakdown"><div class="loading">Loading...</div></div>
       </div>
     </div>
@@ -702,7 +708,35 @@
 
   // ── Donut chart ──────────────────────────────────────────────
   const CAT_COLORS = { crypto: '#1a7a3a', stables: '#999', illiquid: '#d4a017' };
-  const CRYPTO_SHADES = ['#1a7a3a','#2ea855','#52c57a','#85d9a3','#b4ecc7','#d0f5e0'];
+
+  // Distinct per-token colors for the allocation donut
+  const TOKEN_COLORS = {
+    'BTC':     '#f7931a',
+    'ETH':     '#627eea',
+    'HYPE':    '#6366f1',
+    'SOL':     '#9945ff',
+    'JITOSOL': '#9945ff',
+    'TAO':     '#8b6914',
+    'SN44':    '#d4a017',
+    'RENDER':  '#e94040',
+    'RNDR':    '#e94040',
+    'JUP':     '#19c37d',
+    'JITO':    '#38bdf8',
+    'B3':      '#94a3b8',
+    'NEAR':    '#00c08b',
+    'AVAX':    '#e84142',
+    'AAVE':    '#b6509e',
+    'UNI':     '#ff007a',
+  };
+  const FALLBACK_PALETTE = ['#3b82f6','#ec4899','#8b5cf6','#14b8a6','#f59e0b','#ef4444','#06b6d4','#a855f7','#84cc16','#f97316'];
+
+  function getTokenColor(token, index) {
+    const t = (token || '').toUpperCase();
+    for (const [key, val] of Object.entries(TOKEN_COLORS)) {
+      if (t === key || t.startsWith(key + ' ') || t.startsWith(key + '_')) return val;
+    }
+    return FALLBACK_PALETTE[(index || 0) % FALLBACK_PALETTE.length];
+  }
 
   function renderDonut() {
     const cryptoHoldings = holdings.filter(r => getCategory(r[0]) === 'crypto' && r[4] > 1);
@@ -720,7 +754,7 @@
       ...(illiquidTotal > 0 ? [illiquidTotal] : []),
     ];
     const colors = [
-      ...CRYPTO_SHADES.slice(0, cryptoHoldings.length),
+      ...cryptoHoldings.map((r, i) => getTokenColor(r[0], i)),
       ...(stablesTotal > 0 ? ['#999'] : []),
       ...(illiquidTotal > 0 ? ['#d4a017'] : []),
     ];
@@ -728,10 +762,11 @@
     if (donutChart) donutChart.destroy();
     donutChart = new Chart(document.getElementById('donut-chart'), {
       type: 'doughnut',
-      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 1, borderColor: '#fff' }] },
+      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
       options: {
-        responsive: false,
-        cutout: '50%',
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '52%',
         plugins: {
           legend: {
             position: 'right',
@@ -767,19 +802,20 @@
             data: data.map(r => r[2] || 0),
             backgroundColor: '#1a7a3a',
             borderWidth: 0,
-            barThickness: 11,
+            barThickness: 10,
           },
           {
             label: 'Pylon',
             data: data.map(r => r[3] || 0),
             backgroundColor: '#555',
             borderWidth: 0,
-            barThickness: 11,
+            barThickness: 10,
           }
         ]
       },
       options: {
-        responsive: false,
+        responsive: true,
+        maintainAspectRatio: false,
         indexAxis: 'y',
         plugins: {
           legend: {
@@ -831,9 +867,10 @@
     if (sectorChart) sectorChart.destroy();
     sectorChart = new Chart(document.getElementById('sector-chart'), {
       type: 'doughnut',
-      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 1, borderColor: '#fff' }] },
+      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
       options: {
-        responsive: false,
+        responsive: true,
+        maintainAspectRatio: false,
         cutout: '52%',
         plugins: {
           legend: { display: false },
