@@ -295,6 +295,43 @@
   const GVIZ_URL   = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
   const REFRESH_MS = 5 * 60 * 1000;
 
+  // ── Historical AUM snapshots (hardcoded) ─────────────────────
+  // Format: [display label, value, ISO sort date]
+  const HARDCODED_HISTORY = [
+    ["Jul '23",     60994,  '2023-07-25'],
+    ["Nov '24",     90768,  '2024-11-13'],
+    ["Dec '24",    177437,  '2024-12-14'],
+    ["Jan '25",    360435,  '2025-01-17'],
+    ["Feb '25",    259259,  '2025-02-15'],
+    ["Mar '25",    253691,  '2025-03-15'],
+    ["Apr '25",    293853,  '2025-04-11'],
+    ["May '25",    383398,  '2025-05-11'],
+    ["Jun '25",    400853,  '2025-06-11'],
+    ["Jul '25",    426194,  '2025-07-12'],
+    ["Aug '25",    456043,  '2025-08-14'],
+    ["Sep '25",    567147,  '2025-09-21'],
+    ["Oct '25",    471797,  '2025-10-18'],
+    ["Dec 3 '25",  423981,  '2025-12-03'],
+    ["Dec 14 '25", 395337,  '2025-12-14'],
+    ["Jan '26",    414684,  '2026-01-15'],
+    ["Mar '26",    332136,  '2026-03-07'],
+  ];
+
+  // Try to parse a sheet history label into an ISO date for sorting
+  function parseHistLabel(label) {
+    const MONTHS = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+    // "Mon DD YYYY" e.g. "May 14 2026"
+    let m = String(label).match(/^(\w{3})\s+(\d{1,2})\s+(\d{4})$/);
+    if (m) return `${m[3]}-${String(MONTHS[m[1]]||1).padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+    // "Mon DD" (no year — assume 2026)
+    m = String(label).match(/^(\w{3})\s+(\d{1,2})$/);
+    if (m) return `2026-${String(MONTHS[m[1]]||1).padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+    // "Mon 'YY"
+    m = String(label).match(/^(\w{3})\s+'(\d{2})$/);
+    if (m) return `20${m[2]}-${String(MONTHS[m[1]]||1).padStart(2,'0')}-01`;
+    return '2099-12-31';
+  }
+
   let donutChart, splitChart, historyChart, sectorChart;
   let holdings = [];
   let sortCol = 4, sortAsc = false;
@@ -401,12 +438,20 @@
     );
     holdings = rows.slice(0, cutoff).filter(r => r[0] && r[4] != null && r[4] > 0);
 
+    // Merge hardcoded history with sheet history rows, deduplicate by label, sort by date
+    const sheetHistForMerge = histRows.map(r => [r[0], r[1], parseHistLabel(r[0])]);
+    const hardcodedLabels   = new Set(HARDCODED_HISTORY.map(h => h[0]));
+    const sheetOnlyHist     = sheetHistForMerge.filter(r => !hardcodedLabels.has(r[0]));
+    const mergedHistory     = [...HARDCODED_HISTORY, ...sheetOnlyHist]
+      .sort((a, b) => a[2].localeCompare(b[2]))
+      .map(h => [h[0], h[1]]);
+
     renderCategoryBar();
     renderTable();
     renderDonut();
     renderSplitBar();
     renderSectorDonut();
-    renderHistory(histRows);
+    renderHistory(mergedHistory);
   }
 
   // ── Category bar ─────────────────────────────────────────────
@@ -650,7 +695,7 @@
   function renderHistory(histRows) {
     const container = document.getElementById('history-container');
 
-    if (histRows.length === 0) {
+    if (!histRows || histRows.length === 0) {
       container.innerHTML = '<div class="loading" style="color:#bbb">No history data yet.</div>';
       return;
     }
@@ -661,9 +706,9 @@
     canvas.height = 180;
     container.appendChild(canvas);
 
-    if (histRows.length === 1) {
+    if (histRows.length < 3) {
       container.insertAdjacentHTML('beforeend',
-        '<div class="history-note">Add weekly snapshots to the HISTORY section of the sheet to build a performance chart.</div>');
+        '<div class="history-note">Add snapshots to the HISTORY section of the sheet to extend this chart.</div>');
     }
 
     const labels = histRows.map(r => r[0]);
