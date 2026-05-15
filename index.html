@@ -142,6 +142,64 @@
     }
     .history-note { font-size: 11px; color: #bbb; margin-top: 8px; font-style: italic; }
 
+    /* ── CALL OPTIONS SECTION ── */
+    .call-options-section {
+      padding: 20px 32px 40px;
+      border-top: 1px solid #e5e5e5;
+    }
+    .call-options-cards {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .option-card {
+      flex: 1 1 280px;
+      min-width: 260px;
+      max-width: 420px;
+      border: 1px solid #e5e5e5;
+      border-top: 3px solid #1a7a3a;
+      padding: 18px 20px 20px;
+    }
+    .option-card-name {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      margin-bottom: 14px;
+      color: #111;
+    }
+    .option-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 16px;
+    }
+    .option-field {}
+    .option-field-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: #999;
+      margin-bottom: 3px;
+    }
+    .option-field-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: #111;
+      font-variant-numeric: tabular-nums;
+    }
+    .option-field-value.itm { color: #1a7a3a; }
+    .option-field-value.otm { color: #c0392b; }
+    .option-field.full-width {
+      grid-column: 1 / -1;
+    }
+    .option-field-value.delivery {
+      font-size: 11px;
+      font-weight: 400;
+      color: #555;
+      line-height: 1.5;
+    }
+
     /* ── LOADING / ERROR ── */
     .loading { color: #999; font-size: 12px; padding: 20px 0; }
     .error   { color: #c0392b; font-size: 12px; padding: 12px 0; }
@@ -158,6 +216,8 @@
       .right-panel canvas { width: 100% !important; height: auto !important; }
       .sector-section { padding: 18px 18px 24px; }
       .history-section { padding: 18px 18px 24px; }
+      .call-options-section { padding: 18px 18px 28px; }
+      .option-card { max-width: 100%; }
       .aum-value { font-size: 22px; }
     }
   </style>
@@ -255,6 +315,12 @@
 <div class="history-section">
   <div class="section-label">Portfolio Value Over Time</div>
   <div id="history-container"><div class="loading">Loading...</div></div>
+</div>
+
+<!-- CALL OPTIONS -->
+<div class="call-options-section">
+  <div class="section-label">Call Options</div>
+  <div id="call-options-container"><div class="loading">Loading...</div></div>
 </div>
 
 <script>
@@ -703,6 +769,7 @@
       document.getElementById('countdown').textContent = `${m}:${s}`;
       if (countdownSec <= 0) {
         loadData();
+        loadCallOptions();
         startCountdown();
       }
     }, 1000);
@@ -710,11 +777,103 @@
 
   function manualRefresh() {
     loadData();
+    loadCallOptions();
     startCountdown();
+  }
+
+  // ── Call Options ─────────────────────────────────────────────
+  const CALL_OPTIONS_GID = '496554439';
+  const CALL_OPTIONS_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${CALL_OPTIONS_GID}`;
+
+  async function loadCallOptions() {
+    try {
+      const res  = await fetch(CALL_OPTIONS_URL + '&_=' + Date.now());
+      const text = await res.text();
+      const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
+      const rows = json.table.rows.map(r => r.c.map(c => c ? (c.f !== null && c.f !== undefined ? c.f : c.v) : null));
+
+      // First 3 rows are the 3 option positions before "TRANSACTIONS"
+      const options = rows.filter(r => r[0] && !['TRANSACTIONS','Date','Month','Color Key:','TOTAL EXPECTED','EXPECTED TOKENS'].some(s => String(r[0]).startsWith(s)) && rows.indexOf(r) < rows.findIndex(r2 => String(r2[0]).startsWith('TRANSACTIONS')));
+
+      renderCallOptions(options);
+    } catch (e) {
+      document.getElementById('call-options-container').innerHTML =
+        `<div class="error">Failed to load options: ${e.message}</div>`;
+    }
+  }
+
+  function renderCallOptions(options) {
+    if (!options || options.length === 0) {
+      document.getElementById('call-options-container').innerHTML =
+        '<div class="loading" style="color:#bbb">No option data found.</div>';
+      return;
+    }
+
+    const cards = options.map(r => {
+      const name            = r[0] || '';
+      const strike          = r[1] || '';
+      const totalNotional   = r[2] || '';
+      const tokensExercised = r[3] || '';
+      const expiry          = r[4] || '';
+      const currentPrice    = r[5] || '';
+      const status          = r[6] || '';
+      const pctVsStrike     = r[7] || '';
+      const remaining       = r[8] || '';
+      const delivery        = r[9] || '';
+
+      const statusClass = status === 'ITM' ? 'itm' : status === 'OTM' ? 'otm' : '';
+
+      return `
+        <div class="option-card">
+          <div class="option-card-name">${name}</div>
+          <div class="option-fields">
+            <div class="option-field">
+              <div class="option-field-label">Strike Price</div>
+              <div class="option-field-value">${strike}</div>
+            </div>
+            <div class="option-field">
+              <div class="option-field-label">Current Price</div>
+              <div class="option-field-value">${currentPrice}</div>
+            </div>
+            <div class="option-field">
+              <div class="option-field-label">Status</div>
+              <div class="option-field-value ${statusClass}">${status}</div>
+            </div>
+            <div class="option-field">
+              <div class="option-field-label">% vs Strike</div>
+              <div class="option-field-value ${statusClass}">${pctVsStrike}</div>
+            </div>
+            <div class="option-field">
+              <div class="option-field-label">Total Notional</div>
+              <div class="option-field-value">${totalNotional}</div>
+            </div>
+            <div class="option-field">
+              <div class="option-field-label">Remaining Notional</div>
+              <div class="option-field-value">${remaining}</div>
+            </div>
+            <div class="option-field">
+              <div class="option-field-label">Tokens if Exercised</div>
+              <div class="option-field-value">${tokensExercised}</div>
+            </div>
+            <div class="option-field">
+              <div class="option-field-label">Expiry</div>
+              <div class="option-field-value">${expiry}</div>
+            </div>
+            <div class="option-field full-width">
+              <div class="option-field-label">Delivery Terms</div>
+              <div class="option-field-value delivery">${delivery}</div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('call-options-container').innerHTML =
+      `<div class="call-options-cards">${cards}</div>`;
   }
 
   // ── Boot ─────────────────────────────────────────────────────
   loadData();
+  loadCallOptions();
   startCountdown();
 </script>
 </body>
