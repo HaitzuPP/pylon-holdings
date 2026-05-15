@@ -190,6 +190,57 @@
     .opt-payoff-neg { color: #c0392b; font-weight: 600; }
     .opt-delivery-cell { font-size: 11px; color: #777; text-align: right; line-height: 1.5; max-width: 200px; }
 
+    /* ── TAB NAV ── */
+    .tab-nav {
+      display: flex;
+      border-bottom: 1px solid #e5e5e5;
+      padding: 0 32px;
+      background: #fff;
+    }
+    .tab-btn {
+      font-family: Arial; font-size: 12px; font-weight: 600;
+      padding: 12px 20px; border: none; background: none;
+      color: #999; cursor: pointer; letter-spacing: 0.2px;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+      transition: color 0.15s;
+    }
+    .tab-btn:hover { color: #333; }
+    .tab-btn.active { color: #111; border-bottom-color: #1a7a3a; }
+
+    /* ── ITM BANNER ── */
+    .itm-banner-wrap {
+      padding: 0 32px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .itm-banner-wrap:not(:empty) { padding: 12px 32px; border-bottom: 1px solid #f0faf3; background: #f7fdf9; }
+    .itm-pill {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 12px;
+    }
+    .itm-pill-label { font-weight: 700; color: #1a7a3a; }
+    .itm-pill-value { color: #1a7a3a; font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
+    .itm-pill-sub   { font-size: 11px; color: #555; }
+    .itm-pill-div   { width: 1px; height: 20px; background: #c0e8cc; }
+
+    /* ── TAB PANELS ── */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── OVERVIEW GRID ── */
+    .overview-charts {
+      display: flex;
+      gap: 0;
+      border-top: 1px solid #e5e5e5;
+    }
+    .overview-col {
+      padding: 24px 32px 32px;
+      flex: 1;
+    }
+    .overview-col + .overview-col { border-left: 1px solid #e5e5e5; }
+    .overview-col .chart-block + .chart-block { margin-top: 28px; }
+
     /* ── LOADING / ERROR ── */
     .loading { color: #999; font-size: 12px; padding: 20px 0; }
     .error   { color: #c0392b; font-size: 12px; padding: 12px 0; }
@@ -198,17 +249,17 @@
     @media (max-width: 760px) {
       header { padding: 18px 18px 14px; }
       .cat-bar-section { padding: 12px 18px; }
-
-      .main-grid { grid-template-columns: 1fr; }
-      .table-section { padding: 18px 18px 24px; border-right: none; border-bottom: 1px solid #e5e5e5; }
-      .right-panel { padding: 18px 18px 24px; flex-direction: row; flex-wrap: wrap; gap: 18px; }
-      .right-panel .chart-block { flex: 1 1 280px; min-width: 0; }
-      .right-panel canvas { width: 100% !important; height: auto !important; }
+      .tab-nav { padding: 0 18px; }
+      .tab-btn { padding: 10px 12px; font-size: 11px; }
+      .itm-banner-wrap:not(:empty) { padding: 10px 18px; }
+      .overview-charts { flex-direction: column; }
+      .overview-col { padding: 18px 18px 24px; }
+      .overview-col + .overview-col { border-left: none; border-top: 1px solid #e5e5e5; }
+      .table-section { padding: 18px 18px 24px; border-right: none; }
       .sector-section { padding: 18px 18px 24px; }
       .history-section { padding: 18px 18px 24px; }
       .call-options-section { padding: 18px 18px 28px; }
       .options-table { font-size: 11px; }
-      .opt-delivery { max-width: 120px; }
       .aum-value { font-size: 22px; }
     }
   </style>
@@ -233,6 +284,11 @@
         <div class="aum-value small" id="pylon-aum">—</div>
         <div class="aum-label">Pylon</div>
       </div>
+      <div class="aum-div"></div>
+      <div class="aum-block">
+        <div class="aum-value small" id="stables-idle">—</div>
+        <div class="aum-label">Idle (Stables)</div>
+      </div>
     </div>
   </div>
   <div class="header-right">
@@ -241,83 +297,100 @@
   </div>
 </header>
 
-<!-- CATEGORY BAR -->
-<div class="cat-bar-section">
-  <div class="cat-bar-track" id="cat-bar">
-    <div class="cat-bar-seg" id="seg-crypto" style="background:#1a7a3a; width:0%"></div>
-    <div class="cat-bar-seg" id="seg-stables" style="background:#999; width:0%"></div>
-    <div class="cat-bar-seg" id="seg-illiquid" style="background:#d4a017; width:0%"></div>
+<!-- TAB NAV -->
+<nav class="tab-nav">
+  <button class="tab-btn active" data-tab="overview"  onclick="switchTab('overview')">Overview</button>
+  <button class="tab-btn"        data-tab="holdings"  onclick="switchTab('holdings')">Holdings</button>
+  <button class="tab-btn"        data-tab="options"   onclick="switchTab('options')">Options</button>
+  <button class="tab-btn"        data-tab="history"   onclick="switchTab('history')">History</button>
+</nav>
+
+<!-- ITM BANNER (always visible) -->
+<div class="itm-banner-wrap" id="itm-banner"></div>
+
+<!-- ── OVERVIEW TAB ── -->
+<div id="tab-overview" class="tab-panel active">
+
+  <!-- Category bar -->
+  <div class="cat-bar-section">
+    <div class="cat-bar-track" id="cat-bar">
+      <div class="cat-bar-seg" id="seg-crypto"   style="background:#1a7a3a; width:0%"></div>
+      <div class="cat-bar-seg" id="seg-stables"  style="background:#999; width:0%"></div>
+      <div class="cat-bar-seg" id="seg-illiquid" style="background:#d4a017; width:0%"></div>
+    </div>
+    <div class="cat-legend">
+      <div class="cat-item">
+        <div class="cat-dot" style="background:#1a7a3a"></div>
+        <span class="cat-name">Crypto</span>
+        <span class="cat-val" id="cat-crypto-val">—</span>
+        <span class="cat-pct" id="cat-crypto-pct"></span>
+      </div>
+      <div class="cat-item">
+        <div class="cat-dot" style="background:#999"></div>
+        <span class="cat-name">Stables</span>
+        <span class="cat-val" id="cat-stables-val">—</span>
+        <span class="cat-pct" id="cat-stables-pct"></span>
+      </div>
+      <div class="cat-item">
+        <div class="cat-dot" style="background:#d4a017"></div>
+        <span class="cat-name">Illiquid</span>
+        <span class="cat-val" id="cat-illiquid-val">—</span>
+        <span class="cat-pct" id="cat-illiquid-pct"></span>
+      </div>
+    </div>
   </div>
-  <div class="cat-legend" id="cat-legend">
-    <div class="cat-item">
-      <div class="cat-dot" style="background:#1a7a3a"></div>
-      <span class="cat-name">Crypto</span>
-      <span class="cat-val" id="cat-crypto-val">—</span>
-      <span class="cat-pct" id="cat-crypto-pct"></span>
+
+  <!-- Charts: 3-column -->
+  <div class="overview-charts">
+    <div class="overview-col">
+      <div class="chart-block">
+        <div class="section-label">Allocation</div>
+        <canvas id="donut-chart" width="312" height="220"></canvas>
+      </div>
+      <div class="chart-block">
+        <div class="section-label">Personal vs Pylon</div>
+        <canvas id="split-chart" width="312" height="260"></canvas>
+      </div>
     </div>
-    <div class="cat-item">
-      <div class="cat-dot" style="background:#999"></div>
-      <span class="cat-name">Stables</span>
-      <span class="cat-val" id="cat-stables-val">—</span>
-      <span class="cat-pct" id="cat-stables-pct"></span>
-    </div>
-    <div class="cat-item">
-      <div class="cat-dot" style="background:#d4a017"></div>
-      <span class="cat-name">Illiquid</span>
-      <span class="cat-val" id="cat-illiquid-val">—</span>
-      <span class="cat-pct" id="cat-illiquid-pct"></span>
+    <div class="overview-col" style="flex:1.4">
+      <div class="section-label">Sector Analysis</div>
+      <div class="sector-layout">
+        <canvas id="sector-chart" width="240" height="200"></canvas>
+        <div class="sector-breakdown-table" id="sector-breakdown"><div class="loading">Loading...</div></div>
+      </div>
     </div>
   </div>
+
 </div>
 
-<!-- MAIN GRID -->
-<div class="main-grid">
-
-  <!-- Holdings table -->
-  <div class="table-section">
+<!-- ── HOLDINGS TAB ── -->
+<div id="tab-holdings" class="tab-panel">
+  <div class="table-section" style="border-right:none; padding: 24px 32px 40px;">
     <div class="section-header">
       <div class="section-label">Holdings</div>
       <button class="toggle-btn" id="dust-btn" onclick="toggleDust()">Hide dust</button>
     </div>
     <div id="table-container"><div class="loading">Loading...</div></div>
   </div>
+</div>
 
-  <!-- Right charts -->
-  <div class="right-panel">
-    <div class="chart-block">
-      <div class="section-label">Allocation</div>
-      <canvas id="donut-chart" width="312" height="220"></canvas>
+<!-- ── OPTIONS TAB ── -->
+<div id="tab-options" class="tab-panel">
+  <div class="call-options-section">
+    <div class="section-label">Call Options</div>
+    <div id="call-options-container"><div class="loading">Loading...</div></div>
+  </div>
+</div>
+
+<!-- ── HISTORY TAB ── -->
+<div id="tab-history" class="tab-panel">
+  <div class="history-section">
+    <div class="section-header">
+      <div class="section-label">Portfolio Value Over Time</div>
+      <button class="toggle-btn" id="btc-btn" onclick="toggleBTC()">BTC + HYPE overlay</button>
     </div>
-    <div class="chart-block">
-      <div class="section-label">Personal vs Pylon</div>
-      <canvas id="split-chart" width="312" height="280"></canvas>
-    </div>
+    <div id="history-container"><div class="loading">Loading...</div></div>
   </div>
-
-</div>
-
-<!-- SECTOR ANALYSIS -->
-<div class="sector-section">
-  <div class="section-label">Sector Analysis</div>
-  <div class="sector-layout">
-    <canvas id="sector-chart" width="260" height="200"></canvas>
-    <div class="sector-breakdown-table" id="sector-breakdown"><div class="loading">Loading...</div></div>
-  </div>
-</div>
-
-<!-- HISTORY LINE -->
-<div class="history-section">
-  <div class="section-header">
-    <div class="section-label">Portfolio Value Over Time</div>
-    <button class="toggle-btn" id="btc-btn" onclick="toggleBTC()">BTC overlay</button>
-  </div>
-  <div id="history-container"><div class="loading">Loading...</div></div>
-</div>
-
-<!-- CALL OPTIONS -->
-<div class="call-options-section">
-  <div class="section-label">Call Options</div>
-  <div id="call-options-container"><div class="loading">Loading...</div></div>
 </div>
 
 <script>
@@ -383,6 +456,22 @@
   let lastMergedHistory = [];
   const DUST_THRESHOLD = 1000;
 
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
+    // Resize charts that may have been hidden during init
+    if (tab === 'overview') {
+      donutChart  && donutChart.resize();
+      splitChart  && splitChart.resize();
+      sectorChart && sectorChart.resize();
+    }
+    if (tab === 'history') {
+      historyChart && historyChart.resize();
+    }
+  }
+
   function toggleBTC() {
     showBTC = !showBTC;
     const btn = document.getElementById('btc-btn');
@@ -396,6 +485,19 @@
     btn.classList.toggle('active', hideDust);
     btn.textContent = hideDust ? 'Show dust' : 'Hide dust';
     renderTable();
+  }
+
+  function updateITMBanner(options) {
+    const banner = document.getElementById('itm-banner');
+    const itm = options.filter(o => o.status === 'ITM' && o.pnlNum != null && o.pnlNum > 0);
+    if (!itm.length) { banner.innerHTML = ''; return; }
+    banner.innerHTML = itm.map((o, i) => `
+      ${i > 0 ? '<div class="itm-pill-div"></div>' : ''}
+      <div class="itm-pill">
+        <span class="itm-pill-label">${o.name}</span>
+        <span class="itm-pill-sub">Unrealised P&amp;L</span>
+        <span class="itm-pill-value">+$${Math.round(o.pnlNum).toLocaleString()}</span>
+      </div>`).join('');
   }
 
   // ── Categories ──────────────────────────────────────────────
@@ -530,6 +632,11 @@
       document.getElementById(`cat-${cat}-val`).textContent = fmtK(totals[cat]);
       document.getElementById(`cat-${cat}-pct`).textContent = `(${pct}%)`;
     });
+
+    // Stables idle in header
+    const stablesPct = (totals.stables / total * 100).toFixed(1);
+    const idleEl = document.getElementById('stables-idle');
+    if (idleEl) idleEl.textContent = fmtK(totals.stables) + ' (' + stablesPct + '%)';
   }
 
   // ── Holdings table ───────────────────────────────────────────
@@ -1114,15 +1221,15 @@
       const strikeNum = parseFloat(String(r[1].v || '0').replace(/[^0-9.]/g, ''));
       const priceNum  = typeof r[5].v === 'number' ? r[5].v : 0;
       const remNum    = typeof r[8].v === 'number' ? r[8].v : 0;
-      let curVal = '—', pnl = '—', pnlClass = '';
+      let curVal = '—', pnl = '—', pnlClass = '', pnlNum = null;
       if (strikeNum > 0 && remNum > 0) {
         const currentValNum = (remNum / strikeNum) * priceNum;
-        const pnlNum        = currentValNum - remNum;
+        pnlNum   = currentValNum - remNum;
         curVal   = '$' + Math.round(currentValNum).toLocaleString();
         pnl      = (pnlNum >= 0 ? '+' : '') + '$' + Math.round(pnlNum).toLocaleString();
         pnlClass = pnlNum >= 0 ? 'opt-payoff-pos' : 'opt-payoff-neg';
       }
-      return { name, strikeFmt, tokens, expiry, price, status, pct, rem, deliv, isITM, sc, curVal, pnl, pnlClass };
+      return { name, strikeFmt, tokens, expiry, price, status, pct, rem, deliv, isITM, sc, curVal, pnl, pnlClass, pnlNum };
     });
 
     // Transposed table — metrics as rows, options as columns
@@ -1158,6 +1265,8 @@
         <thead><tr><th></th>${colHeaders}</tr></thead>
         <tbody>${tbody}</tbody>
       </table>`;
+
+    updateITMBanner(parsed);
   }
 
   // ── Boot ─────────────────────────────────────────────────────
