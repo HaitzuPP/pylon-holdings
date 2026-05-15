@@ -340,7 +340,7 @@
 
   // ── Categories ──────────────────────────────────────────────
   const STABLES  = ['USDC','USDT','USDG','BUSD','USDS','DAI','FRAX','TUSD','LUSD'];
-  const ILLIQUID = ['SN44'];
+  const ILLIQUID = [];
 
   function getCategory(token) {
     const t = token.toUpperCase();
@@ -692,6 +692,26 @@
   }
 
   // ── History line chart ───────────────────────────────────────
+  const crosshairPlugin = {
+    id: 'crosshair',
+    afterDraw(chart) {
+      if (!chart.tooltip._active || !chart.tooltip._active.length) return;
+      const ctx  = chart.ctx;
+      const x    = chart.tooltip._active[0].element.x;
+      const topY = chart.scales.y.top;
+      const botY = chart.scales.y.bottom;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(x, topY);
+      ctx.lineTo(x, botY);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+      ctx.setLineDash([4, 4]);
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
+
   function renderHistory(histRows) {
     const container = document.getElementById('history-container');
 
@@ -701,51 +721,84 @@
     }
 
     container.innerHTML = '';
-    const canvas = document.createElement('canvas');
-    canvas.width  = Math.min(window.innerWidth - 64, 1400);
-    canvas.height = 300;
-    container.appendChild(canvas);
 
-    if (histRows.length < 3) {
-      container.insertAdjacentHTML('beforeend',
-        '<div class="history-note">Add snapshots to the HISTORY section of the sheet to extend this chart.</div>');
-    }
+    // Responsive wrapper
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:relative; height:320px; width:100%;';
+    container.appendChild(wrapper);
+    const canvas = document.createElement('canvas');
+    wrapper.appendChild(canvas);
 
     const labels = histRows.map(r => r[0]);
     const values = histRows.map(r => r[1]);
-    const minVal = Math.min(...values) * 0.93;
-    const maxVal = Math.max(...values) * 1.05;
+    const minVal = Math.min(...values) * 0.90;
+    const maxVal = Math.max(...values) * 1.06;
+    const athIdx = values.indexOf(Math.max(...values));
+
+    // Point styling — highlight ATH
+    const pointRadius = values.map((_, i) => i === athIdx ? 6 : 3.5);
+    const pointBg     = values.map((_, i) => i === athIdx ? '#fff' : '#1a7a3a');
+    const pointBorder = values.map((_, i) => i === athIdx ? '#1a7a3a' : '#1a7a3a');
+    const pointBorderW = values.map((_, i) => i === athIdx ? 2.5 : 0);
 
     if (historyChart) historyChart.destroy();
     historyChart = new Chart(canvas, {
       type: 'line',
+      plugins: [crosshairPlugin],
       data: {
         labels,
         datasets: [{
           data: values,
           borderColor: '#1a7a3a',
-          borderWidth: 2.5,
-          pointBackgroundColor: '#1a7a3a',
-          pointRadius: 4,
+          borderWidth: 2,
+          pointBackgroundColor: pointBg,
+          pointBorderColor: pointBorder,
+          pointBorderWidth: pointBorderW,
+          pointRadius: pointRadius,
           pointHoverRadius: 7,
+          pointHoverBackgroundColor: '#fff',
+          pointHoverBorderColor: '#1a7a3a',
+          pointHoverBorderWidth: 2.5,
           fill: true,
           backgroundColor: (ctx) => {
-            const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300);
-            g.addColorStop(0, 'rgba(26,122,58,0.13)');
+            const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 320);
+            g.addColorStop(0, 'rgba(26,122,58,0.11)');
             g.addColorStop(1, 'rgba(26,122,58,0)');
             return g;
           },
-          tension: 0.3,
+          tension: 0.35,
         }]
       },
       options: {
-        responsive: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: {
-            padding: 10,
+            backgroundColor: '#fff',
+            borderColor: '#e0e0e0',
+            borderWidth: 1,
+            titleColor: '#111',
+            bodyColor: '#555',
+            padding: 12,
+            cornerRadius: 2,
+            displayColors: false,
             callbacks: {
-              label: ctx => ` $${Math.round(ctx.raw).toLocaleString()}`
+              title: ctx => ctx[0].label,
+              label: ctx => {
+                const i   = ctx.dataIndex;
+                const val = values[i];
+                const prev = i > 0 ? values[i - 1] : null;
+                const delta = prev != null ? ((val - prev) / prev * 100) : null;
+                const lines = [` $${Math.round(val).toLocaleString()}`];
+                if (delta != null) {
+                  const sign = delta >= 0 ? '+' : '';
+                  lines.push(` ${sign}${delta.toFixed(1)}% vs prior`);
+                }
+                if (i === athIdx) lines.push(' All-time high');
+                return lines;
+              }
             }
           }
         },
@@ -754,22 +807,25 @@
             grid: { display: false },
             border: { display: false },
             ticks: {
-              font: { family: 'Arial', size: 12 },
-              color: '#555',
-              maxRotation: 30,
+              font: { family: 'Arial', size: 11 },
+              color: '#777',
+              maxRotation: 35,
               minRotation: 0,
+              autoSkip: true,
+              maxTicksLimit: 14,
             }
           },
           y: {
             min: minVal,
             max: maxVal,
-            grid: { color: '#f0f0f0' },
-            border: { display: false },
+            position: 'left',
+            grid: { color: '#f0f0f0', drawBorder: false },
+            border: { display: false, dash: [4, 4] },
             ticks: {
-              font: { family: 'Arial', size: 12 },
-              color: '#888',
+              font: { family: 'Arial', size: 11 },
+              color: '#aaa',
               maxTicksLimit: 6,
-              callback: v => '$' + (v / 1000).toFixed(0) + 'k'
+              callback: v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)
             }
           }
         }
