@@ -283,7 +283,7 @@
   // ── Sector mapping (edit tokens here to reclassify) ─────────
   // Add or move tokens between sectors as the portfolio changes.
   const SECTOR_MAP = {
-    AI:      ['TAO','RENDER','RNDR','FET','AKT','IO','GRASS','NEAR','WLD','OCEAN','NMR','AGIX','ALT','ARKM','PRIME','VIRTUAL','GFAL','ATH','CGPT'],
+    AI:      ['TAO','RENDER','RNDR','FET','AKT','IO','GRASS','NEAR','WLD','OCEAN','NMR','AGIX','ALT','ARKM','PRIME','VIRTUAL','GFAL','ATH','CGPT','SN44'],
     DeFi:    ['AAVE','UNI','LINK','DYDX','CRV','MKR','SNX','1INCH','COMP','BAL','SUSHI','GMX','PENDLE','LDO','JUP','JITO','ORCA','RAY','PYTH'],
     'L1/L2': ['BTC','ETH','SOL','AVAX','MATIC','POL','ARB','OP','APT','SUI','TIA','ATOM','DOT','ADA','TON','INJ','SEI','KAVA','XRP','BNB'],
   };
@@ -291,10 +291,10 @@
   function getSector(token) {
     const t = token.toUpperCase();
     if (STABLES.some(s => t === s || t.startsWith(s))) return 'Stables';
-    if (ILLIQUID.some(s => t.includes(s))) return 'Illiquid';
     for (const [sector, tokens] of Object.entries(SECTOR_MAP)) {
       if (tokens.includes(t)) return sector;
     }
+    if (ILLIQUID.some(s => t.includes(s))) return 'Illiquid';
     return 'Other';
   }
 
